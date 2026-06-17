@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qwint-admin-frontend
+    ports:
+      - "${PORT:-8080}:${PORT:-80}"
+    environment:
+      - PORT=${PORT:-80}
+    restart: unless-stopped

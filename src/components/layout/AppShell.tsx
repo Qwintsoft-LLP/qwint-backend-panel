@@ -1,8 +1,9 @@
 import { useState } from "react"
 import Sidebar from "./Sidebar"
 import Topbar from "./Topbar"
+import { CommandPalette } from "@/components/shared/CommandPalette"
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
+export default function AppShell({ children }: { children: React.ReactNode, routeName?: string }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
@@ -21,7 +22,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <Topbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+        <Topbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
+            className="hidden md:flex items-center gap-1.5 px-2 h-7 rounded border border-[var(--border)] text-xs text-[var(--text-muted)] hover:border-[var(--border-focus)] hover:text-[var(--text-secondary)] transition-colors"
+          >
+            <span>Quick jump</span>
+            <kbd className="text-[10px] bg-[var(--bg-elevated)] px-1 rounded">⌘K</kbd>
+          </button>
+        </Topbar>
+        <CommandPalette />
         <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6">
           {children}
         </main>

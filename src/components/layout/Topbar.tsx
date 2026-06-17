@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { getStorage, STORAGE_KEYS, setStorage } from "@/lib/storage"
 import { Moon as MoonIcon, Sun as SunIcon, Menu as MenuIcon } from "lucide-react"
 
-export default function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
+export default function Topbar({ onToggleSidebar, children }: { onToggleSidebar: () => void, children?: React.ReactNode }) {
   const location = useLocation()
   const [theme, setTheme] = useState(getStorage(STORAGE_KEYS.THEME) || "dark")
   const [keysConfigured, setKeysConfigured] = useState(0)
@@ -36,6 +36,7 @@ export default function Topbar({ onToggleSidebar }: { onToggleSidebar: () => voi
         <div className="text-sm font-medium capitalize text-muted-foreground">
           {routeName}
         </div>
+        {children}
       </div>
 
       <div className="flex items-center gap-4">
