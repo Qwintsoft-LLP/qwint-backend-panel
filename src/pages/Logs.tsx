@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo, useRef } from "react"
-import { useSearchParams } from "react-router-dom"
 import { useLogs, LogEntry } from "@/hooks/useLogs"
 import AdminTable from "@/components/shared/AdminTable"
 import StatusBadge from "@/components/shared/StatusBadge"
 import CopyField from "@/components/shared/CopyField"
 import SlideOver from "@/components/shared/SlideOver"
-import { ExternalLink, RefreshCw, Settings, ChevronDown } from "lucide-react"
+import { ExternalLink, RefreshCw, Settings, ChevronDown, Download, AlertTriangle } from "lucide-react"
+import { exportToCsv } from "@/lib/export"
+import { useLogFilters } from "@/hooks/useLogFilters"
+import { cn } from "@/lib/utils"
 
 const STANDARD_COLUMNS = [
   { id: "created_at", label: "Time" },
@@ -22,16 +24,12 @@ const STANDARD_COLUMNS = [
 ]
 
 export default function Logs() {
-  const [searchParams] = useSearchParams()
-  const { data: logs, isLoading, refetch } = useLogs()
-  const [search, setSearch] = useState(searchParams.get("search") || "")
-  const [levelFilter, setLevelFilter] = useState("All")
-  const [appFilter, setAppFilter] = useState("All")
+  const [fetchLimit, setFetchLimit] = useState(2000)
+  const { data: logs, isLoading, refetch } = useLogs(fetchLimit)
+  const filters = useLogFilters()
+  
   const [live, setLive] = useState(false)
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null)
-  
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
   
   const [sortColumn, setSortColumn] = useState<string>("created_at")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
@@ -70,21 +68,22 @@ export default function Logs() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, levelFilter, appFilter, sortColumn, sortDirection, itemsPerPage, startDate, endDate])
+  }, [filters.search, filters.level, filters.app, sortColumn, sortDirection, itemsPerPage, filters.dateFrom, filters.dateTo])
 
   const filteredLogs = logs?.filter(log => {
+    const search = filters.search;
     const matchesSearch = search === "" || 
       log.message?.toLowerCase().includes(search.toLowerCase()) || 
       log.url?.toLowerCase().includes(search.toLowerCase()) ||
       log.api_key?.includes(search) ||
       log.user_id?.includes(search)
     
-    const matchesLevel = levelFilter === "All" || log.level === levelFilter
-    const matchesApp = appFilter === "All" || log.app_name === appFilter
+    const matchesLevel = filters.level === "all" || log.level === filters.level
+    const matchesApp = filters.app === "all" || log.app_name === filters.app
     
     const logDate = new Date(log.created_at)
-    const matchesStartDate = !startDate || logDate >= new Date(startDate)
-    const matchesEndDate = !endDate || logDate <= new Date(endDate + 'T23:59:59.999Z')
+    const matchesStartDate = !filters.dateFrom || logDate >= new Date(filters.dateFrom)
+    const matchesEndDate = !filters.dateTo || logDate <= new Date(filters.dateTo + 'T23:59:59.999Z')
     
     return matchesSearch && matchesLevel && matchesApp && matchesStartDate && matchesEndDate
   })?.sort((a, b) => {
@@ -99,6 +98,13 @@ export default function Logs() {
     if (aVal > bVal) return sortDirection === "asc" ? 1 : -1
     return 0
   }) || []
+
+  const logStats = useMemo(() => ({
+    total:    filteredLogs.length,
+    errors:   filteredLogs.filter(l => l.level === "error").length,
+    avgMs:    filteredLogs.filter(l => l.duration).reduce((s, l, _, a) => s + Number(l.duration ?? 0) / a.length, 0),
+    credits:  filteredLogs.reduce((s, l) => s + Number(l.credits_deducted ?? 0), 0),
+  }), [filteredLogs])
 
   const totalPages = itemsPerPage === "All" ? 1 : Math.ceil(filteredLogs.length / itemsPerPage)
   const paginatedLogs = itemsPerPage === "All" 
@@ -132,22 +138,50 @@ export default function Logs() {
     )
   }
 
+  const exportFiltered = () => {
+    exportToCsv(`logs-${Date.now()}.csv`, filteredLogs.map(l => ({
+      time:     l.created_at,
+      level:    l.level,
+      method:   l.method,
+      url:      l.url,
+      status:   l.status,
+      duration: l.duration,
+      credits:  l.credits_deducted,
+      api_key:  l.api_key,
+      user_id:  l.user_id,
+      message:  l.message,
+    })))
+  }
+
   return (
-    <div className="space-y-6 flex flex-col h-full">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-4 shrink-0">
+    <div className="space-y-4 flex flex-col h-full">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
+        <h1 className="text-2xl font-semibold tracking-tight">System Logs</h1>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm cursor-pointer border border-border px-3 py-1.5 rounded-md hover:bg-muted transition-colors">
+          <label className="flex items-center gap-2 text-sm cursor-pointer border border-border px-3 py-1.5 rounded-md hover:bg-muted transition-colors bg-card">
             <input 
               type="checkbox" 
               checked={live} 
               onChange={e => setLive(e.target.checked)}
-              className="rounded bg-background border-border"
+              className="rounded bg-background border-border accent-[var(--accent)]"
             />
             Live (30s)
           </label>
+          <select 
+            className="h-8 px-2 text-sm bg-card border border-border rounded-md text-foreground cursor-pointer hover:bg-muted transition-colors"
+            value={fetchLimit}
+            onChange={e => setFetchLimit(Number(e.target.value))}
+            title="Max logs to fetch from server"
+          >
+            <option value={100}>Fetch 100</option>
+            <option value={500}>Fetch 500</option>
+            <option value={2000}>Fetch 2000</option>
+            <option value={5000}>Fetch 5000</option>
+            <option value={10000}>Fetch 10000</option>
+          </select>
           <button 
             onClick={() => refetch()}
-            className="p-1.5 rounded-md border border-border hover:bg-muted transition-colors"
+            className="p-1.5 rounded-md border border-border hover:bg-muted transition-colors bg-card"
             title="Refresh logs"
           >
             <RefreshCw className="w-4 h-4 text-muted-foreground" />
@@ -155,58 +189,86 @@ export default function Logs() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 bg-card p-3 border border-border rounded-md shrink-0">
+      <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
+        <span>Showing <strong className="text-[var(--text-primary)]">{logStats.total}</strong> entries</span>
+        <span>·</span>
+        <span><strong className="text-[var(--error)]">{logStats.errors}</strong> errors</span>
+        <span>·</span>
+        <span>Avg <strong className="text-[var(--text-primary)]">{logStats.avgMs.toFixed(0)}ms</strong></span>
+        <span>·</span>
+        <span><strong className="text-[var(--text-primary)]">{logStats.credits.toFixed(2)}</strong> cr deducted</span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 bg-[var(--card-bg)] p-3 border border-[var(--card-border)] rounded-md shrink-0">
         <input 
           type="text" 
           placeholder="Search message, URL, key, user..."
-          className="flex-1 min-w-[200px] h-8 px-3 text-sm bg-background border border-border rounded-md"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
+          className="flex-1 min-w-[200px] h-8 px-3 text-sm bg-[var(--input-bg)] border border-[var(--input-border)] rounded-md"
+          value={filters.search}
+          onChange={e => filters.setSearch(e.target.value)}
         />
         
         <div className="flex items-center gap-2">
           <input 
             type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="h-8 px-2 text-sm bg-background border border-border rounded-md text-muted-foreground"
+            value={filters.dateFrom}
+            onChange={(e) => filters.setDateFrom(e.target.value)}
+            className="h-8 px-2 text-sm bg-[var(--input-bg)] border border-[var(--input-border)] rounded-md text-muted-foreground"
             title="Start Date"
           />
           <span className="text-muted-foreground text-sm">to</span>
           <input 
             type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="h-8 px-2 text-sm bg-background border border-border rounded-md text-muted-foreground"
+            value={filters.dateTo}
+            onChange={(e) => filters.setDateTo(e.target.value)}
+            className="h-8 px-2 text-sm bg-[var(--input-bg)] border border-[var(--input-border)] rounded-md text-muted-foreground"
             title="End Date"
           />
         </div>
 
-        <select 
-          className="h-8 px-3 text-sm bg-background border border-border rounded-md w-32"
-          value={levelFilter}
-          onChange={e => setLevelFilter(e.target.value)}
+        <button
+          className={cn("flex items-center gap-1 h-8 px-3 text-xs border rounded-md transition-colors", 
+            filters.level === "error" 
+              ? "bg-[var(--error)]/10 text-[var(--error)] border-[var(--error)]/30" 
+              : "bg-[var(--input-bg)] border-[var(--input-border)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]")}
+          onClick={() => filters.setLevel(filters.level === "error" ? "all" : "error")}
         >
-          <option value="All">All Levels</option>
+          <AlertTriangle size={12} />
+          Errors only
+        </button>
+
+        <select 
+          className="h-8 px-3 text-sm bg-[var(--input-bg)] border border-[var(--input-border)] rounded-md w-32"
+          value={filters.level}
+          onChange={e => filters.setLevel(e.target.value)}
+        >
+          <option value="all">All Levels</option>
           <option value="info">Info</option>
           <option value="warn">Warn</option>
           <option value="error">Error</option>
         </select>
+        
         <select 
-          className="h-8 px-3 text-sm bg-background border border-border rounded-md w-36"
-          value={appFilter}
-          onChange={e => setAppFilter(e.target.value)}
+          className="h-8 px-3 text-sm bg-[var(--input-bg)] border border-[var(--input-border)] rounded-md w-36"
+          value={filters.app}
+          onChange={e => filters.setApp(e.target.value)}
         >
-          <option value="All">All Apps</option>
+          <option value="all">All Apps</option>
           {appNames.map(name => (
             <option key={name} value={name}>{name}</option>
           ))}
         </select>
 
+        {filters.activeCount > 0 && (
+          <button onClick={filters.clearAll} className="text-xs text-[var(--accent)] hover:underline">
+            Clear ({filters.activeCount})
+          </button>
+        )}
+
         <div className="relative" ref={colSelectorRef}>
           <button
             onClick={() => setIsColumnSelectorOpen(!isColumnSelectorOpen)}
-            className="flex items-center gap-2 h-8 px-3 text-sm bg-background border border-border rounded-md hover:bg-muted transition-colors"
+            className="flex items-center gap-2 h-8 px-3 text-sm bg-[var(--input-bg)] border border-[var(--input-border)] rounded-md hover:bg-[var(--bg-hover)] transition-colors"
           >
             <Settings className="w-4 h-4 text-muted-foreground" />
             <span className="hidden sm:inline">Columns</span>
@@ -225,7 +287,7 @@ export default function Logs() {
                       type="checkbox" 
                       checked={visibleColumns.includes(col.id)}
                       onChange={() => toggleColumn(col.id)}
-                      className="rounded bg-background border-border"
+                      className="rounded bg-background border-border accent-[var(--accent)]"
                     />
                     {col.label}
                   </label>
@@ -242,7 +304,7 @@ export default function Logs() {
                           type="checkbox" 
                           checked={visibleColumns.includes(key)}
                           onChange={() => toggleColumn(key)}
-                          className="rounded bg-background border-border"
+                          className="rounded bg-background border-border accent-[var(--accent)]"
                         />
                         <span className="truncate">{key}</span>
                       </label>
@@ -253,9 +315,17 @@ export default function Logs() {
             </div>
           )}
         </div>
+
+        <button
+          onClick={exportFiltered}
+          className="flex items-center gap-1 h-8 px-3 text-xs bg-[var(--input-bg)] border border-[var(--input-border)] rounded-md hover:bg-[var(--bg-hover)] transition-colors"
+        >
+          <Download size={12} />
+          Export
+        </button>
       </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col">
+      <div className="flex-1 overflow-hidden flex flex-col min-h-0">
         <div className="flex-1 overflow-auto">
           <AdminTable 
             isLoading={isLoading}
@@ -303,7 +373,7 @@ export default function Logs() {
                         <span className="text-muted-foreground truncate max-w-[150px] inline-block" title={log.url}>{log.url || "—"}</span>
                       )}
                       {colId === "status" && (
-                        <span className={`font-mono ${!log.status ? "text-muted-foreground" : log.status >= 500 ? "text-error" : log.status >= 400 ? "text-warning" : "text-success"}`}>
+                        <span className={`font-mono ${!log.status ? "text-muted-foreground" : log.status >= 500 ? "text-[var(--error)]" : log.status >= 400 ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>
                           {log.status || "—"}
                         </span>
                       )}
@@ -468,7 +538,7 @@ function LogDetailSlideOver({ log, onClose }: { log: LogEntry | null; onClose: (
           {log.credits_deducted && (
             <>
               <div className="text-muted-foreground">Credits</div>
-              <div className="font-mono text-xs text-error">−{log.credits_deducted}</div>
+              <div className="font-mono text-xs text-[var(--error)]">−{log.credits_deducted}</div>
             </>
           )}
         </div>

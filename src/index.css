@@ -4,44 +4,83 @@
 
 @layer base {
   :root {
-    --bg-base: #FAFAFA;
-    --bg-surface: #FFFFFF;
-    --bg-elevated: #F4F4F5;
-    --bg-hover: #F0F0F0;
-    --border: #E4E4E7;
-    --border-focus: #D4D4D8;
-    --text-primary: #09090B;
-    --text-secondary: #71717A;
-    --text-muted: #A1A1AA;
+    /* ── Light Mode — reworked for visible contrast ── */
+    --bg-base:        #F0F0F3;   /* Page canvas — perceptibly gray */
+    --bg-surface:     #FFFFFF;   /* Cards, panels — pure white stands out */
+    --bg-elevated:    #F5F5F8;   /* Table headers, input fills */
+    --bg-hover:       #EBEBEF;   /* Row hover — clearly darker than surface */
+    --border:         #D1D1DB;   /* Visible border — 3:1 contrast on white */
+    --border-focus:   #A1A1B5;   /* Focus ring — strong enough to notice */
+    --text-primary:   #0A0A0F;
+    --text-secondary: #52525E;
+    --text-muted:     #8C8C9A;
 
-    --accent: #7C3AED;
-    --accent-hover: #6D28D9;
-    --success: #22C55E;
-    --warning: #F59E0B;
-    --error: #EF4444;
-    --info: #3B82F6;
+    --accent:         #7C3AED;
+    --accent-hover:   #6D28D9;
+    --success:        #15803D;   /* Darker green for light bg legibility */
+    --warning:        #B45309;   /* Darker amber */
+    --error:          #B91C1C;   /* Darker red */
+    --info:           #1D4ED8;   /* Darker blue */
+
+    /* Semantic surface roles */
+    --sidebar-bg:     #FFFFFF;
+    --sidebar-border: #D1D1DB;
+    --topbar-bg:      #FFFFFF;
+    --card-bg:        #FFFFFF;
+    --card-border:    #D1D1DB;
+    --table-header:   #F5F5F8;
+    --input-bg:       #FFFFFF;
+    --input-border:   #C4C4D0;
 
     --radius: 6px;
   }
 
+  /* Light mode — explicit shadows to lift cards off the page */
+  :root .card,
+  :root [data-card],
+  :root .admin-card {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--card-border);
+  }
+
+  /* Table header must never blend into rows */
+  :root thead tr {
+    background-color: var(--table-header) !important;
+    border-bottom: 2px solid var(--border) !important;
+  }
+
+  /* Sidebar needs a right border in light mode */
+  :root aside {
+    border-right: 1px solid var(--sidebar-border);
+    background-color: var(--sidebar-bg);
+  }
+
+  /* Stat cards in light mode get a subtle left accent */
+  :root .stat-card {
+    border-left: 3px solid var(--accent);
+  }
+
   .dark {
-    --bg-base: #0A0A0A;
-    --bg-surface: #111111;
-    --bg-elevated: #1A1A1A;
-    --bg-hover: #222222;
-    --border: #2A2A2A;
-    --border-focus: #3A3A3A;
-
-    --text-primary: #F5F5F5;
+    --bg-base:        #0A0A0A;
+    --bg-surface:     #111111;
+    --bg-elevated:    #1A1A1A;
+    --bg-hover:       #222222;
+    --border:         #2A2A2A;
+    --border-focus:   #3A3A3A;
+    --text-primary:   #F5F5F5;
     --text-secondary: #888888;
-    --text-muted: #555555;
-
-    --accent: #7C3AED;
-    --accent-hover: #6D28D9;
-    --success: #22C55E;
-    --warning: #F59E0B;
-    --error: #EF4444;
-    --info: #3B82F6;
+    --text-muted:     #555555;
+    --sidebar-bg:     #111111;
+    --sidebar-border: #2A2A2A;
+    --topbar-bg:      #111111;
+    --card-bg:        #111111;
+    --card-border:    #2A2A2A;
+    --table-header:   #1A1A1A;
+    --input-bg:       #1A1A1A;
+    --input-border:   #3A3A3A;
+    --success:        #22C55E;
+    --warning:        #F59E0B;
+    --error:          #EF4444;
+    --info:           #3B82F6;
   }
 }
 
