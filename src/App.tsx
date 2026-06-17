@@ -1,0 +1,48 @@
+import { RouterProvider, createBrowserRouter, Outlet, Navigate } from "react-router-dom"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { Toaster } from "@/components/ui/toaster"
+
+import Dashboard from "@/pages/Dashboard"
+import ApiKeys from "@/pages/ApiKeys"
+import Wallets from "@/pages/Wallets"
+import WalletDetail from "@/pages/WalletDetail"
+import Products from "@/pages/Products"
+import Orders from "@/pages/Orders"
+import Logs from "@/pages/Logs"
+import Settings from "@/pages/Settings"
+import AppShell from "@/components/layout/AppShell"
+
+const queryClient = new QueryClient()
+
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: (
+      <AppShell>
+        <Outlet />
+      </AppShell>
+    ),
+    children: [
+      { index: true, element: <Navigate to="/dashboard" replace /> },
+      { path: "dashboard", element: <Dashboard /> },
+      { path: "api-keys", element: <ApiKeys /> },
+      { path: "wallets", element: <Wallets /> },
+      { path: "wallets/:userId", element: <WalletDetail /> },
+      { path: "payments/products", element: <Products /> },
+      { path: "payments/orders", element: <Orders /> },
+      { path: "logs", element: <Logs /> },
+      { path: "settings", element: <Settings /> },
+    ],
+  },
+])
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+      <Toaster />
+    </QueryClientProvider>
+  )
+}
+
+export default App
