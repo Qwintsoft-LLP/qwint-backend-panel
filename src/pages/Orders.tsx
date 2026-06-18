@@ -26,7 +26,7 @@ export default function Orders() {
   const [isColumnSelectorOpen, setIsColumnSelectorOpen] = useState(false)
   const colSelectorRef = useRef<HTMLDivElement>(null)
   
-  const DEFAULT_COLUMNS = ["id", "customer", "product", "amount", "credits_minutes", "status", "payment_id", "api_key", "created_at", "actions"]
+  const DEFAULT_COLUMNS = ["id", "customer", "product", "amount", "credits", "status", "payment_id", "api_key", "created_at", "actions"]
   const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_COLUMNS)
 
   useEffect(() => {
@@ -143,11 +143,14 @@ export default function Orders() {
       )
     },
     {
-      key: "credits_minutes",
+      key: "credits",
       header: "Credits",
-      align: "right",
       sortable: true,
-      cell: o => <span className="font-mono text-xs text-[var(--success)]">+{o.credits_minutes ?? 0} min</span>
+      cell: o => {
+        const val = o.credits_raw ?? o.credits ?? 0;
+        const unit = o.credits_unit === 'units' ? 'credits' : (o.credits_unit || 'min');
+        return <span className="font-mono text-xs text-[var(--success)]">+{val} {unit}</span>
+      }
     },
     {
       key: "status",
@@ -230,7 +233,7 @@ export default function Orders() {
     const mul = dir === "asc" ? 1 : -1;
     switch (key) {
       case "amount":          return mul * ((a.amount || 0) - (b.amount || 0));
-      case "credits_minutes": return mul * ((a.credits_minutes || 0) - (b.credits_minutes || 0));
+      case "credits_minutes": return mul * ((a.credits || 0) - (b.credits || 0));
       case "status":          return mul * ((a.status || "").localeCompare(b.status || ""));
       case "created_at":      return mul * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       default: return 0;

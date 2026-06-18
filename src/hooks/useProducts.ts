@@ -17,7 +17,9 @@ export interface Order {
   customer_state?: string
   product_id: string
   amount: number
-  credits_minutes: number
+  credits: number
+  credits_raw?: number
+  credits_unit?: string
   razorpay_order_id?: string
   razorpay_payment_id?: string
   status: string
@@ -525,8 +527,8 @@ export function useOrders() {
   return useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
-      // Mocked data for perfect UI testing
-      return MOCK_QC_ORDERS as any[]
+      const res = await apiClient.get<{ data: Order[] }>("/api/v1/admin/orders")
+      return res.data.data || []
     },
   })
 }
