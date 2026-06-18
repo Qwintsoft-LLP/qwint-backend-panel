@@ -18,8 +18,12 @@ export default function CopyField({ value, masked, truncate }: CopyFieldProps) {
   }
 
   let displayValue = value
-  if (masked && value.length > 8) {
-    displayValue = `qc-••••••••${value.slice(-4)}`
+  if (masked && value.length > 4) {
+    if (value.startsWith("qc-")) {
+      displayValue = `qc-••••••••${value.slice(-4)}`
+    } else {
+      displayValue = `${value.slice(0, 3)}***${value.slice(-4)}`
+    }
   } else if (truncate && value.length > truncate) {
     displayValue = `${value.slice(0, truncate)}...`
   }

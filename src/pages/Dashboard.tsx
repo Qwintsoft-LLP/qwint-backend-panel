@@ -23,12 +23,12 @@ export default function Dashboard() {
   const lowBudgetKeysCount = keys.filter(k => k.remaining_budget < 10).length
   const systemErrors = logs.filter(l => l.level === "error").length
   
-  // Recent credits used (simplified for demo)
+  // Lifetime credits used (Source of truth: Logs)
   const totalRemainingBudget = keys.reduce((sum, k) => sum + Number(k.remaining_budget || 0), 0)
-  const recentCreditsUsed = totalBudget - totalRemainingBudget
+  const lifetimeCreditsUsed = logs.reduce((sum, l) => sum + Number(l.credits_deducted || 0), 0)
 
   // Operational Metrics
-  const budgetUtilization = totalBudget > 0 ? ((recentCreditsUsed / totalBudget) * 100).toFixed(1) : "0"
+  const budgetUtilization = totalBudget > 0 ? ((lifetimeCreditsUsed / totalBudget) * 100).toFixed(1) : "0"
   const neverUsedKeysCount = keys.filter(k => !k.last_used).length
   
   const logsWithDuration = logs.filter(l => typeof l.duration === 'number')
@@ -76,9 +76,9 @@ export default function Dashboard() {
           icon={<AlertCircle className="w-5 h-5 text-muted-foreground" />}
         />
         <MetricCard 
-          label="Credits Used (Recent)" 
-          value={keysLoading ? "..." : formatCredits(recentCreditsUsed)} 
-          subValue={keysLoading ? null : formatDuration(recentCreditsUsed)}
+          label="Lifetime Credits Used" 
+          value={keysLoading ? "..." : formatCredits(lifetimeCreditsUsed)} 
+          subValue={keysLoading ? null : formatDuration(lifetimeCreditsUsed)}
           icon={<Activity className="w-5 h-5 text-muted-foreground" />} 
         />
         

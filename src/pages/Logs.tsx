@@ -25,7 +25,7 @@ const STANDARD_COLUMNS = [
 ]
 
 export default function Logs() {
-  const { data: logs, isLoading, refetch } = useLogs(5000)
+  const { data: logs, isLoading, refetch } = useLogs()
   const filters = useLogFilters()
   
   const [live, setLive] = useState(false)

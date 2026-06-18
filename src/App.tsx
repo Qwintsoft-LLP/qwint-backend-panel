@@ -10,6 +10,7 @@ import Products from "@/pages/Products"
 import Orders from "@/pages/Orders"
 import Logs from "@/pages/Logs"
 import Settings from "@/pages/Settings"
+import Analytics from "@/pages/Analytics"
 import AppShell from "@/components/layout/AppShell"
 
 const queryClient = new QueryClient()
@@ -32,6 +33,7 @@ const router = createBrowserRouter([
       { path: "payments/orders", element: <Orders /> },
       { path: "logs", element: <Logs /> },
       { path: "settings", element: <Settings /> },
+      { path: "analytics", element: <Analytics /> },
     ],
   },
 ])

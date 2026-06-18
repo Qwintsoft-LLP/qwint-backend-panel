@@ -18,11 +18,11 @@ export interface LogEntry {
   created_at: string
 }
 
-export function useLogs(limit: number = 2000) {
+export function useLogs() {
   return useQuery({
-    queryKey: ["logs", limit],
+    queryKey: ["logs"],
     queryFn: async () => {
-      const res = await apiClient.get<{ data: LogEntry[] }>(`/api/logs/latest?limit=${limit}`)
+      const res = await apiClient.get<{ data: LogEntry[] }>(`/api/logs/latest?limit=9999999`)
       return res.data.data || []
     },
     refetchInterval: () => {
