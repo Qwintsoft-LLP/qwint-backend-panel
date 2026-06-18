@@ -28,7 +28,6 @@ export default function Wallets() {
   const [segment, setSegment] = useState("all")
   const [topupUser, setTopupUser] = useState<string | null>(null)
   const [drawerUser, setDrawerUser] = useState<UserBalance | null>(null)
-  const navigate = useNavigate()
 
   const filteredBalances = useMemo(() => {
     return balances.filter(b => {

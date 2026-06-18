@@ -99,12 +99,41 @@ export default function Logs() {
     return 0
   }) || []
 
-  const logStats = useMemo(() => ({
-    total:    filteredLogs.length,
-    errors:   filteredLogs.filter(l => l.level === "error").length,
-    avgMs:    filteredLogs.filter(l => l.duration).reduce((s, l, _, a) => s + Number(l.duration ?? 0) / a.length, 0),
-    credits:  filteredLogs.reduce((s, l) => s + Number(l.credits_deducted ?? 0), 0),
-  }), [filteredLogs])
+  const logStats = useMemo(() => {
+    let totalTokens = 0;
+    let promptTokens = 0;
+    let thoughtsTokens = 0;
+    let candidatesTokens = 0;
+    
+    filteredLogs.forEach(l => {
+      if (l.metadata) {
+        Object.entries(l.metadata).forEach(([k, v]) => {
+          const keyLower = k.toLowerCase();
+          const val = Number(v) || 0;
+          if (keyLower === 'totaltokencount' || keyLower === 'totaltokens') {
+            totalTokens += val;
+          } else if (keyLower === 'prompttokencount' || keyLower === 'prompttokens') {
+            promptTokens += val;
+          } else if (keyLower === 'thoughtstokencount' || keyLower === 'thoughtstokens') {
+            thoughtsTokens += val;
+          } else if (keyLower === 'candidatestokencount' || keyLower === 'candidatestokens') {
+            candidatesTokens += val;
+          }
+        });
+      }
+    });
+
+    return {
+      total:    filteredLogs.length,
+      errors:   filteredLogs.filter(l => l.level === "error").length,
+      avgMs:    filteredLogs.filter(l => l.duration).reduce((s, l, _, a) => s + Number(l.duration ?? 0) / a.length, 0),
+      credits:  filteredLogs.reduce((s, l) => s + Number(l.credits_deducted ?? 0), 0),
+      totalTokens,
+      promptTokens,
+      thoughtsTokens,
+      candidatesTokens,
+    };
+  }, [filteredLogs])
 
   const totalPages = itemsPerPage === "All" ? 1 : Math.ceil(filteredLogs.length / itemsPerPage)
   const paginatedLogs = itemsPerPage === "All" 
@@ -189,7 +218,7 @@ export default function Logs() {
         </div>
       </div>
 
-      <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
+      <div className="flex items-center gap-4 text-xs text-[var(--text-muted)] flex-wrap">
         <span>Showing <strong className="text-[var(--text-primary)]">{logStats.total}</strong> entries</span>
         <span>·</span>
         <span><strong className="text-[var(--error)]">{logStats.errors}</strong> errors</span>
@@ -197,6 +226,18 @@ export default function Logs() {
         <span>Avg <strong className="text-[var(--text-primary)]">{logStats.avgMs.toFixed(0)}ms</strong></span>
         <span>·</span>
         <span><strong className="text-[var(--text-primary)]">{logStats.credits.toFixed(2)}</strong> cr deducted</span>
+        {(logStats.totalTokens > 0 || logStats.promptTokens > 0 || logStats.candidatesTokens > 0) && (
+          <>
+            <span>·</span>
+            <div className="flex items-center gap-3 bg-[var(--bg-elevated)] px-2 py-0.5 rounded border border-[var(--border)]">
+              <span className="text-[10px] uppercase tracking-wider font-semibold">Tokens</span>
+              {logStats.totalTokens > 0 && <span>Total: <strong className="text-[var(--text-primary)]">{logStats.totalTokens.toLocaleString()}</strong></span>}
+              {logStats.promptTokens > 0 && <span>Prompt: <strong className="text-[var(--text-primary)]">{logStats.promptTokens.toLocaleString()}</strong></span>}
+              {logStats.thoughtsTokens > 0 && <span>Thoughts: <strong className="text-[var(--text-primary)]">{logStats.thoughtsTokens.toLocaleString()}</strong></span>}
+              {logStats.candidatesTokens > 0 && <span>Candidates: <strong className="text-[var(--text-primary)]">{logStats.candidatesTokens.toLocaleString()}</strong></span>}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-3 bg-[var(--card-bg)] p-3 border border-[var(--card-border)] rounded-md shrink-0">

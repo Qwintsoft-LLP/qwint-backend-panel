@@ -46,7 +46,7 @@ export default function Sidebar() {
                 className={({ isActive }) =>
                   cn(
                     "flex items-center px-4 py-2 mx-2 text-sm rounded-md transition-colors text-muted-foreground hover:bg-muted hover:text-foreground group max-lg:justify-center max-lg:mx-1 max-lg:px-0",
-                    isActive && "bg-muted text-foreground font-medium border-l-[3px] border-accent rounded-l-none mx-0 pl-[calc(1rem-3px)] max-lg:border-none max-lg:rounded-md max-lg:pl-0 max-lg:mx-1"
+                    isActive && "bg-muted text-foreground font-medium"
                   )
                 }
                 title={item.name}
