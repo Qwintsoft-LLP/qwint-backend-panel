@@ -15,6 +15,7 @@ export interface LogEntry {
   user_id?: string
   message: string
   metadata?: any
+  response_data?: any
   created_at: string
 }
 

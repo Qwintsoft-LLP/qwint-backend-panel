@@ -9,6 +9,38 @@ import { exportToCsv } from "@/lib/export"
 import { useLogFilters } from "@/hooks/useLogFilters"
 import { cn } from "@/lib/utils"
 
+function JsonTooltip({ data }: { data: any }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const isObj = typeof data === 'object' && data !== null
+  const displayStr = isObj ? JSON.stringify(data) : String(data)
+  
+  if (!data) return <span className="text-muted-foreground">—</span>
+
+  return (
+    <div 
+      className="relative group inline-block"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+      onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+    >
+      <div className="truncate max-w-[150px] text-muted-foreground cursor-pointer font-mono text-[10px]">
+        {displayStr}
+      </div>
+      
+      {isOpen && (
+        <div className="absolute left-0 bottom-full mb-2 z-[100] w-max max-w-[300px] sm:max-w-[500px]">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-md shadow-xl p-3">
+            <pre className="text-[10px] font-mono text-[var(--text-primary)] whitespace-pre-wrap max-h-[300px] overflow-y-auto custom-scrollbar">
+              {isObj ? JSON.stringify(data, null, 2) : String(data)}
+            </pre>
+          </div>
+          <div className="absolute -bottom-1.5 left-4 w-3 h-3 bg-[var(--bg-surface)] border-b border-r border-[var(--border)] rotate-45"></div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const STANDARD_COLUMNS = [
   { id: "created_at", label: "Time" },
   { id: "app_name", label: "App" },
@@ -22,6 +54,7 @@ const STANDARD_COLUMNS = [
   { id: "credits_deducted", label: "Credits" },
   { id: "user_id", label: "User ID" },
   { id: "api_key", label: "API Key" },
+  { id: "response_data", label: "Response" },
 ]
 
 export default function Logs() {
@@ -52,7 +85,7 @@ export default function Logs() {
   }, [logs])
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
-    return ["created_at", "app_name", "level", "message", "request_id", "method", "status", "duration", "api_key"]
+    return ["created_at", "app_name", "level", "message", "response_data", "request_id", "method", "status", "duration", "api_key"]
   })
 
   // Close column selector when clicking outside
@@ -87,7 +120,10 @@ export default function Logs() {
     const matchesStartDate = !filters.dateFrom || logDate >= new Date(filters.dateFrom)
     const matchesEndDate = !filters.dateTo || logDate <= new Date(filters.dateTo + 'T23:59:59.999Z')
     
-    return matchesSearch && matchesLevel && matchesApp && matchesMethod && matchesStartDate && matchesEndDate
+    const matchesApiKey = !filters.apiKey || log.api_key === filters.apiKey
+    const matchesUserId = !filters.userId || log.user_id === filters.userId
+    
+    return matchesSearch && matchesLevel && matchesApp && matchesMethod && matchesStartDate && matchesEndDate && matchesApiKey && matchesUserId
   })?.sort((a, b) => {
     if (!sortColumn) return 0
     let aVal = (a as any)[sortColumn] ?? a.metadata?.[sortColumn]
@@ -303,6 +339,20 @@ export default function Logs() {
           ))}
         </select>
 
+        {filters.apiKey && (
+          <div className="flex items-center gap-1 bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/30 px-2 h-8 rounded text-xs">
+            Key: {filters.apiKey.substring(0, 8)}...
+            <button onClick={() => filters.setApiKey("")} className="ml-1 hover:text-[var(--text-primary)]">×</button>
+          </div>
+        )}
+        
+        {filters.userId && (
+          <div className="flex items-center gap-1 bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/30 px-2 h-8 rounded text-xs">
+            User: {filters.userId.substring(0, 8)}...
+            <button onClick={() => filters.setUserId("")} className="ml-1 hover:text-[var(--text-primary)]">×</button>
+          </div>
+        )}
+
         {filters.activeCount > 0 && (
           <button onClick={filters.clearAll} className="text-xs text-[var(--accent)] hover:underline">
             Clear ({filters.activeCount})
@@ -435,6 +485,9 @@ export default function Logs() {
                       )}
                       {colId === "api_key" && (
                         <span className="font-mono text-muted-foreground truncate max-w-[100px] inline-block" title={log.api_key}>{log.api_key ? log.api_key.substring(0, 16) + '...' : "—"}</span>
+                      )}
+                      {colId === "response_data" && (
+                        <JsonTooltip data={log.response_data} />
                       )}
                       
                       {/* Dynamic Metadata Columns */}
@@ -595,6 +648,17 @@ function LogDetailSlideOver({ log, onClose }: { log: LogEntry | null; onClose: (
             {log.message}
           </div>
         </div>
+
+        {log.response_data && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium">Response Data</h3>
+            <pre className="p-3 bg-muted rounded-md text-xs font-mono overflow-x-auto whitespace-pre-wrap">
+              {typeof log.response_data === 'object' 
+                ? JSON.stringify(log.response_data, null, 2) 
+                : String(log.response_data)}
+            </pre>
+          </div>
+        )}
 
         {log.metadata && (
           <div className="space-y-2">
