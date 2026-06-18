@@ -11,6 +11,7 @@ import { Activity, MoreHorizontal, Plus, Download } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { exportToCsv } from "@/lib/export"
 import { ColumnToggle } from "@/components/shared/ColumnToggle"
+import { getStorage, STORAGE_KEYS } from "@/lib/storage"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -204,6 +205,17 @@ export default function ApiKeys() {
       align: "right",
       cell: (r) => (
         <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={() => {
+              let baseUrl = getStorage(STORAGE_KEYS.API_BASE_URL) || "http://localhost:3000";
+              baseUrl = baseUrl.replace(/\/api\/?$/, "");
+              window.location.href = `${baseUrl}/api/download-plugin/${r.key}`;
+            }}
+            className="p-1 rounded hover:bg-background border border-transparent hover:border-border text-[var(--accent)] hover:text-[var(--accent)] transition-all"
+            title="Download Plugin ZIP"
+          >
+            <Download className="w-4 h-4" />
+          </button>
           <Link
             to={`/logs?key=${r.key}`}
             className="p-1 rounded hover:bg-background border border-transparent hover:border-border text-muted-foreground hover:text-foreground transition-all"
@@ -450,7 +462,7 @@ function UpdateBudgetModal({ apiKey, open, onClose }: { apiKey: ApiKey | null; o
           <div className="p-6 space-y-6">
             <div className="bg-muted p-3 rounded-md text-sm grid gap-1">
               <div className="flex justify-between"><span className="text-muted-foreground">Key:</span> <span className="font-mono">{apiKey.username} ({apiKey.key.slice(0, 12)}...)</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Current Remaining:</span> <span className="font-mono font-medium">Seconds: {apiKey.remaining_budget} ({apiKey.remaining_budget / 60} min.)</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Current Remaining:</span> <span className="font-mono font-medium">{apiKey.remaining_budget} s ({(apiKey.remaining_budget / 60).toFixed(2)} min.)</span></div>
             </div>
 
             <div className="space-y-4">

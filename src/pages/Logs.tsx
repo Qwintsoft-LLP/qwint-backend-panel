@@ -14,6 +14,7 @@ const STANDARD_COLUMNS = [
   { id: "app_name", label: "App" },
   { id: "level", label: "Level" },
   { id: "message", label: "Message" },
+  { id: "request_id", label: "Request ID" },
   { id: "method", label: "Method" },
   { id: "url", label: "URL" },
   { id: "status", label: "Status" },
@@ -24,8 +25,7 @@ const STANDARD_COLUMNS = [
 ]
 
 export default function Logs() {
-  const [fetchLimit, setFetchLimit] = useState(2000)
-  const { data: logs, isLoading, refetch } = useLogs(fetchLimit)
+  const { data: logs, isLoading, refetch } = useLogs(5000)
   const filters = useLogFilters()
   
   const [live, setLive] = useState(false)
@@ -52,7 +52,7 @@ export default function Logs() {
   }, [logs])
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
-    return ["created_at", "app_name", "level", "message", "method", "status", "duration", "api_key"]
+    return ["created_at", "app_name", "level", "message", "request_id", "method", "status", "duration", "api_key"]
   })
 
   // Close column selector when clicking outside
@@ -68,7 +68,7 @@ export default function Logs() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [filters.search, filters.level, filters.app, sortColumn, sortDirection, itemsPerPage, filters.dateFrom, filters.dateTo])
+  }, [filters.search, filters.level, filters.app, filters.method, sortColumn, sortDirection, itemsPerPage, filters.dateFrom, filters.dateTo])
 
   const filteredLogs = logs?.filter(log => {
     const search = filters.search;
@@ -76,16 +76,18 @@ export default function Logs() {
       log.message?.toLowerCase().includes(search.toLowerCase()) || 
       log.url?.toLowerCase().includes(search.toLowerCase()) ||
       log.api_key?.includes(search) ||
-      log.user_id?.includes(search)
+      log.user_id?.includes(search) ||
+      log.request_id?.toLowerCase().includes(search.toLowerCase())
     
     const matchesLevel = filters.level === "all" || log.level === filters.level
     const matchesApp = filters.app === "all" || log.app_name === filters.app
+    const matchesMethod = filters.method === "all" || log.method?.toUpperCase() === filters.method.toUpperCase()
     
     const logDate = new Date(log.created_at)
     const matchesStartDate = !filters.dateFrom || logDate >= new Date(filters.dateFrom)
     const matchesEndDate = !filters.dateTo || logDate <= new Date(filters.dateTo + 'T23:59:59.999Z')
     
-    return matchesSearch && matchesLevel && matchesApp && matchesStartDate && matchesEndDate
+    return matchesSearch && matchesLevel && matchesApp && matchesMethod && matchesStartDate && matchesEndDate
   })?.sort((a, b) => {
     if (!sortColumn) return 0
     let aVal = (a as any)[sortColumn] ?? a.metadata?.[sortColumn]
@@ -183,7 +185,7 @@ export default function Logs() {
   }
 
   return (
-    <div className="space-y-4 flex flex-col h-full">
+    <div className="flex-1 flex flex-col min-h-0 space-y-4 overflow-hidden">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <h1 className="text-2xl font-semibold tracking-tight">System Logs</h1>
         <div className="flex items-center gap-3">
@@ -196,18 +198,6 @@ export default function Logs() {
             />
             Live (30s)
           </label>
-          <select 
-            className="h-8 px-2 text-sm bg-card border border-border rounded-md text-foreground cursor-pointer hover:bg-muted transition-colors"
-            value={fetchLimit}
-            onChange={e => setFetchLimit(Number(e.target.value))}
-            title="Max logs to fetch from server"
-          >
-            <option value={100}>Fetch 100</option>
-            <option value={500}>Fetch 500</option>
-            <option value={2000}>Fetch 2000</option>
-            <option value={5000}>Fetch 5000</option>
-            <option value={10000}>Fetch 10000</option>
-          </select>
           <button 
             onClick={() => refetch()}
             className="p-1.5 rounded-md border border-border hover:bg-muted transition-colors bg-card"
@@ -240,7 +230,7 @@ export default function Logs() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 bg-[var(--card-bg)] p-3 border border-[var(--card-border)] rounded-md shrink-0">
+      <div className="flex flex-wrap items-center gap-3 bg-[var(--card-bg)] p-3 border border-[var(--card-border)] rounded-md shrink-0 relative z-20">
         <input 
           type="text" 
           placeholder="Search message, URL, key, user..."
@@ -288,6 +278,19 @@ export default function Logs() {
           <option value="warn">Warn</option>
           <option value="error">Error</option>
         </select>
+
+        <select 
+          className="h-8 px-3 text-sm bg-[var(--input-bg)] border border-[var(--input-border)] rounded-md w-32"
+          value={filters.method}
+          onChange={e => filters.setMethod(e.target.value)}
+        >
+          <option value="all">All Methods</option>
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
+          <option value="DELETE">DELETE</option>
+          <option value="PATCH">PATCH</option>
+        </select>
         
         <select 
           className="h-8 px-3 text-sm bg-[var(--input-bg)] border border-[var(--input-border)] rounded-md w-36"
@@ -317,18 +320,18 @@ export default function Logs() {
           </button>
           
           {isColumnSelectorOpen && (
-            <div className="absolute right-0 top-full mt-2 w-64 bg-card border border-border rounded-md shadow-lg z-50 max-h-96 flex flex-col overflow-hidden">
-              <div className="p-2 border-b border-border bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="absolute left-0 sm:right-auto top-full mt-2 w-64 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-md shadow-lg z-50 max-h-96 flex flex-col overflow-hidden">
+              <div className="p-2 border-b border-[var(--card-border)] bg-[var(--bg-elevated)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 Standard Columns
               </div>
               <div className="overflow-y-auto p-2 space-y-1">
                 {STANDARD_COLUMNS.map(col => (
-                  <label key={col.id} className="flex items-center gap-2 text-sm cursor-pointer p-1 hover:bg-muted rounded">
+                  <label key={col.id} className="flex items-center gap-2 text-sm cursor-pointer p-1 hover:bg-[var(--bg-hover)] rounded text-[var(--text-primary)]">
                     <input 
                       type="checkbox" 
                       checked={visibleColumns.includes(col.id)}
                       onChange={() => toggleColumn(col.id)}
-                      className="rounded bg-background border-border accent-[var(--accent)]"
+                      className="rounded border-[var(--border)] accent-[var(--accent)]"
                     />
                     {col.label}
                   </label>
@@ -336,16 +339,16 @@ export default function Logs() {
                 
                 {metadataKeys.length > 0 && (
                   <>
-                    <div className="pt-2 pb-1 mt-2 border-t border-border text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <div className="pt-2 pb-1 mt-2 border-t border-[var(--card-border)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                       Metadata Columns
                     </div>
                     {metadataKeys.map(key => (
-                      <label key={key} className="flex items-center gap-2 text-sm cursor-pointer p-1 hover:bg-muted rounded">
+                      <label key={key} className="flex items-center gap-2 text-sm cursor-pointer p-1 hover:bg-[var(--bg-hover)] rounded text-[var(--text-primary)]">
                         <input 
                           type="checkbox" 
                           checked={visibleColumns.includes(key)}
                           onChange={() => toggleColumn(key)}
-                          className="rounded bg-background border-border accent-[var(--accent)]"
+                          className="rounded border-[var(--border)] accent-[var(--accent)]"
                         />
                         <span className="truncate">{key}</span>
                       </label>
@@ -366,12 +369,11 @@ export default function Logs() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-        <div className="flex-1 overflow-auto">
+      <div className="flex-1 min-h-0 flex flex-col border border-[var(--card-border)] rounded-lg overflow-hidden bg-[var(--card-bg)] shadow-sm">
           <AdminTable 
             isLoading={isLoading}
             isEmpty={paginatedLogs.length === 0}
-            className="text-[11px]"
+            className="flex-1 max-h-none border-0 rounded-none shadow-none text-[11px]"
             headers={[
               ...visibleColumns.map(colId => {
                 const standardCol = STANDARD_COLUMNS.find(c => c.id === colId)
@@ -404,10 +406,14 @@ export default function Logs() {
                           {log.message}
                         </div>
                       )}
+                      {colId === "request_id" && (
+                        <div className="flex items-center">
+                          {log.request_id ? <CopyField value={log.request_id} truncate={8} masked={false} /> : <span className="text-muted-foreground">—</span>}
+                        </div>
+                      )}
                       {colId === "method" && (
                         <div className="flex items-center gap-1">
                           {log.method && <span className="font-mono text-[10px] bg-muted px-1 rounded text-muted-foreground">{log.method}</span>}
-                          {log.request_id && <span className="text-muted-foreground text-[10px] font-mono truncate max-w-[60px]" title={log.request_id}>{log.request_id.substring(0, 8)}</span>}
                         </div>
                       )}
                       {colId === "url" && (
@@ -455,11 +461,10 @@ export default function Logs() {
               </tr>
             ))}
           </AdminTable>
-        </div>
         
         {/* Pagination controls */}
         {filteredLogs.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between py-4 px-2 shrink-0 border-t border-border mt-auto">
+          <div className="flex flex-wrap items-center justify-between p-3 shrink-0 border-t border-[var(--border)] bg-[var(--card-bg)] mt-auto z-10 relative">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>Rows per page:</span>
               <select 

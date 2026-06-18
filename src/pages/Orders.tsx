@@ -1,37 +1,73 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef, useEffect } from "react"
 import { useOrders } from "@/hooks/useProducts"
+import { useApiKeys } from "@/hooks/useApiKeys"
 import AdminTable, { Column } from "@/components/shared/AdminTable"
 import StatusBadge from "@/components/shared/StatusBadge"
 import CopyField from "@/components/shared/CopyField"
 import SlideOver from "@/components/shared/SlideOver"
 import { formatDistanceToNow } from "date-fns"
-import { Gift, Info, Download } from "lucide-react"
+import { Gift, Info, Download, Settings, ChevronDown } from "lucide-react"
 import { exportToCsv } from "@/lib/export"
 import { cn } from "@/lib/utils"
+import { getStorage, STORAGE_KEYS } from "@/lib/storage"
 
 export default function Orders() {
-  const { data: orders = [], isLoading } = useOrders()
+  const { data: orders = [], isLoading: isOrdersLoading } = useOrders()
+  const { data: apiKeys = [], isLoading: isKeysLoading } = useApiKeys()
+  const isLoading = isOrdersLoading || isKeysLoading;
+  
   const [issueKeyOpen, setIssueKeyOpen] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
   
-  // Filters
-  const [filterApp, setFilterApp] = useState<"ALL" | "CAPTION" | "TALK">("ALL")
-  const [filterStatus, setFilterStatus] = useState<"ALL" | "PAID" | "PENDING" | "FAILED">("ALL")
+  const [filterProduct, setFilterProduct] = useState<string>("ALL")
+  const [filterStatus, setFilterStatus] = useState<string>("ALL")
+  const [searchQuery, setSearchQuery] = useState("")
+
+  const [isColumnSelectorOpen, setIsColumnSelectorOpen] = useState(false)
+  const colSelectorRef = useRef<HTMLDivElement>(null)
+  
+  const DEFAULT_COLUMNS = ["id", "customer", "product", "amount", "credits_minutes", "status", "payment_id", "api_key", "created_at", "actions"]
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_COLUMNS)
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (colSelectorRef.current && !colSelectorRef.current.contains(e.target as Node)) {
+        setIsColumnSelectorOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const uniqueProducts = useMemo(() => {
+    const products = new Set(orders.map(o => o.product_id).filter(Boolean));
+    return Array.from(products).sort();
+  }, [orders]);
 
   const filteredOrders = useMemo(() => {
     return orders.filter(o => {
-      let appMatch = true;
-      if (filterApp === "CAPTION") appMatch = o.source.includes('caption');
-      if (filterApp === "TALK") appMatch = o.source.includes('talk');
+      let productMatch = true;
+      if (filterProduct !== "ALL") productMatch = o.product_id === filterProduct;
       
       let statusMatch = true;
       if (filterStatus === "PAID") statusMatch = (o.status === "PAID" || o.status === "SUCCESS");
       if (filterStatus === "PENDING") statusMatch = (o.status === "PENDING");
       if (filterStatus === "FAILED") statusMatch = (o.status === "FAILED");
+
+      let searchMatch = true;
+      if (searchQuery.trim() !== "") {
+        const q = searchQuery.toLowerCase();
+        searchMatch = 
+          o.customer_name?.toLowerCase().includes(q) ||
+          o.customer_email?.toLowerCase().includes(q) ||
+          o.razorpay_order_id?.toLowerCase().includes(q) ||
+          o.razorpay_payment_id?.toLowerCase().includes(q) ||
+          o.customer_mobile?.includes(q);
+      }
       
-      return appMatch && statusMatch;
+      return productMatch && statusMatch && searchMatch;
     });
-  }, [orders, filterApp, filterStatus]);
+  }, [orders, filterProduct, filterStatus, searchQuery]);
 
   const orderStats = useMemo(() => ({
     total:       orders.length,
@@ -44,21 +80,24 @@ export default function Orders() {
 
   const exportOrders = () => {
     exportToCsv(`orders-${Date.now()}.csv`, filteredOrders.map(o => ({
-      order_id: o.razorpay_order_id,
-      app: o.source,
-      type: o.type,
+      order_id: o.razorpay_order_id || o.id,
       customer_name: o.customer_name,
       customer_email: o.customer_email,
       customer_mobile: o.customer_mobile,
+      customer_state: o.customer_state,
       product: o.product_id,
       amount: o.amount,
       currency: o.currency,
-      credits: o.credits_raw,
+      credits_minutes: o.credits_minutes,
       status: o.status,
       payment_id: o.razorpay_payment_id,
-      created_at: o.created_at
+      api_key: o.api_key,
+      created_at: o.created_at,
+      updated_at: o.updated_at
     })));
   };
+
+
 
   const STATUS_TABS = [
     { key: "ALL", label: "All Orders" },
@@ -71,42 +110,26 @@ export default function Orders() {
     {
       key: "id",
       header: "Order ID / Ref",
-      cell: o => o.razorpay_order_id ? <CopyField value={o.razorpay_order_id} truncate={12} /> : "—"
-    },
-    {
-      key: "app",
-      header: "App / Type",
-      cell: o => (
-        <>
-          <div className="font-medium text-xs bg-muted text-muted-foreground w-fit px-2 py-0.5 rounded uppercase tracking-wider mb-1">
-            {o.source.replace(/_/g, ' ')}
-          </div>
-          <div className={`text-xs font-semibold ${o.type === 'CREDIT' ? 'text-[var(--success)]' : 'text-[var(--error)]'}`}>
-            {o.type}
-          </div>
-        </>
-      )
+      cell: o => o.razorpay_order_id ? <CopyField value={o.razorpay_order_id} truncate={12} /> : <span className="font-mono text-[10px] text-muted-foreground">{o.id.substring(0,8)}...</span>
     },
     {
       key: "customer",
       header: "Customer",
       cell: o => (
         <>
-          <div className="font-medium text-sm">{o.customer_name}</div>
-          {o.customer_email && <div className="text-xs text-muted-foreground">{o.customer_email}</div>}
-          {o.customer_mobile && o.customer_mobile !== "Unknown" && <div className="text-xs text-muted-foreground">{o.customer_mobile}</div>}
-          {o.customer_state && <div className="text-xs text-muted-foreground">{o.customer_state}</div>}
+          <div className="font-medium text-sm max-w-[150px] truncate" title={o.customer_name}>{o.customer_name || "Guest"}</div>
+          {o.customer_email && <div className="text-xs text-muted-foreground max-w-[150px] truncate" title={o.customer_email}>{o.customer_email}</div>}
+          {o.customer_mobile && o.customer_mobile !== "0000000000" && <div className="text-xs text-muted-foreground">{o.customer_mobile}</div>}
+          {o.customer_state && o.customer_state !== "Unknown" && <div className="text-[10px] uppercase text-muted-foreground tracking-wider mt-0.5">{o.customer_state}</div>}
         </>
       )
     },
     {
       key: "product",
-      header: "Product / Info",
+      header: "Product",
       cell: o => (
-        <div className="max-w-[200px]">
-          <div className="font-medium text-sm truncate" title={o.product_id}>{o.product_id}</div>
-          <div className="text-xs text-muted-foreground truncate" title={o.description}>{o.description}</div>
-          {o.api_key && <div className="text-xs font-mono text-muted-foreground mt-1 truncate" title={o.api_key}>Key: {o.api_key.substring(0,8)}...</div>}
+        <div className="font-medium text-xs bg-muted text-muted-foreground w-fit px-2 py-0.5 rounded uppercase tracking-wider">
+          Product {o.product_id}
         </div>
       )
     },
@@ -116,21 +139,20 @@ export default function Orders() {
       align: "right",
       sortable: true,
       cell: o => (
-        <>
-      {Number(o.amount || 0) > 0 && <div className="font-mono text-sm">{Number(o.amount || 0).toFixed(2)} {o.currency}</div>}
-          {o.credits_raw > 0 && <div className="text-xs font-mono text-muted-foreground mt-0.5">{o.credits_raw} {o.credits_unit}</div>}
-        </>
+        <div className="font-mono text-sm">{Number(o.amount || 0).toFixed(2)} {o.currency}</div>
       )
     },
     {
-      key: "credits_raw",
+      key: "credits_minutes",
       header: "Credits",
       align: "right",
-      cell: o => <span className="font-mono text-xs">{o.credits_raw ?? 0} cr</span>
+      sortable: true,
+      cell: o => <span className="font-mono text-xs text-[var(--success)]">+{o.credits_minutes ?? 0} min</span>
     },
     {
       key: "status",
       header: "Status",
+      sortable: true,
       cell: o => (
         <StatusBadge variant={o.status === "PAID" || o.status === "SUCCESS" ? "success" : o.status === "FAILED" ? "error" : "warning"}>
           {o.status}
@@ -141,6 +163,15 @@ export default function Orders() {
       key: "payment_id",
       header: "Payment ID",
       cell: o => <span className="font-mono text-muted-foreground text-xs">{o.razorpay_payment_id ? <CopyField value={o.razorpay_payment_id} truncate={12} /> : "—"}</span>
+    },
+    {
+      key: "api_key",
+      header: "API Key",
+      cell: o => {
+        const matchingKey = apiKeys.find((k: any) => k.order_id && (k.order_id === o.razorpay_order_id || k.order_id === o.id));
+        const finalKey = o.api_key || matchingKey?.key;
+        return <span className="font-mono text-muted-foreground text-xs">{finalKey ? <CopyField value={finalKey} truncate={12} /> : "—"}</span>
+      }
     },
     {
       key: "created_at",
@@ -156,40 +187,78 @@ export default function Orders() {
       key: "actions",
       header: "Actions",
       align: "right",
-      cell: o => (
-        <button 
-          className="p-1 rounded text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors" 
-          title="View Details"
-          onClick={() => setSelectedOrder(o)}
-        >
-          <Info className="w-4 h-4" />
-        </button>
-      )
+      cell: o => {
+        const matchingKey = apiKeys.find((k: any) => k.order_id && (k.order_id === o.razorpay_order_id || k.order_id === o.id));
+        const finalKey = o.api_key || matchingKey?.key;
+        return (
+          <div className="flex items-center justify-end gap-1">
+            {finalKey && (
+              <button 
+                className="p-1 rounded text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors" 
+                title="Download Plugin ZIP"
+                onClick={() => {
+                  let baseUrl = getStorage(STORAGE_KEYS.API_BASE_URL) || "http://localhost:3000";
+                  baseUrl = baseUrl.replace(/\/api\/?$/, "");
+                  window.location.href = `${baseUrl}/api/download-plugin/${finalKey}`;
+                }}
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            )}
+            <button 
+              className="p-1 rounded text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors" 
+              title="View Details"
+              onClick={() => setSelectedOrder(o)}
+            >
+              <Info className="w-4 h-4" />
+            </button>
+          </div>
+        )
+      }
     }
   ];
+
+  const visibleColDefs = columns.filter(c => visibleColumns.includes(c.key));
+  
+  const toggleColumn = (colKey: string) => {
+    setVisibleColumns(prev => 
+      prev.includes(colKey) ? prev.filter(k => k !== colKey) : [...prev, colKey]
+    )
+  }
 
   const sortFn = (key: string, dir: "asc" | "desc") => (a: any, b: any) => {
     const mul = dir === "asc" ? 1 : -1;
     switch (key) {
-      case "amount":     return mul * ((a.amount || 0) - (b.amount || 0));
-      case "created_at": return mul * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      case "amount":          return mul * ((a.amount || 0) - (b.amount || 0));
+      case "credits_minutes": return mul * ((a.credits_minutes || 0) - (b.credits_minutes || 0));
+      case "status":          return mul * ((a.status || "").localeCompare(b.status || ""));
+      case "created_at":      return mul * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       default: return 0;
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="flex-1 flex flex-col min-h-0 space-y-4 overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
         <div className="flex items-center gap-3">
+          <input 
+            type="text" 
+            placeholder="Search name, email, order id..."
+            className="h-9 px-3 text-sm border border-[var(--border)] bg-[var(--input-bg)] rounded-md focus:outline-none focus:border-[var(--accent)] transition-colors min-w-[220px]"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+
           <select 
-            value={filterApp} 
-            onChange={e => setFilterApp(e.target.value as "ALL" | "CAPTION" | "TALK")}
-            className="h-9 px-3 py-1.5 text-sm font-medium border border-[var(--border)] bg-[var(--input-bg)] rounded-md hover:bg-[var(--bg-hover)] transition-colors focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+            value={filterProduct} 
+            onChange={e => setFilterProduct(e.target.value)}
+            className="h-9 px-3 py-1.5 text-sm font-medium border border-[var(--border)] bg-[var(--input-bg)] rounded-md hover:bg-[var(--bg-hover)] transition-colors focus:outline-none focus:ring-1 focus:ring-[var(--accent)] min-w-[120px]"
           >
-            <option value="ALL">All Apps</option>
-            <option value="CAPTION">Qwint Caption</option>
-            <option value="TALK">Qwint Talk</option>
+            <option value="ALL">All Products</option>
+            {uniqueProducts.map(p => (
+              <option key={p} value={p}>Product {p}</option>
+            ))}
           </select>
 
           <button 
@@ -202,7 +271,7 @@ export default function Orders() {
         </div>
       </div>
 
-      <div className="flex items-center gap-4 text-xs text-[var(--text-muted)] mb-3 flex-wrap bg-[var(--bg-elevated)] p-3 rounded border border-[var(--border)]">
+      <div className="flex items-center gap-4 text-xs text-[var(--text-muted)] mb-1 flex-wrap bg-[var(--bg-elevated)] p-3 rounded border border-[var(--border)]">
         <span><strong className="text-[var(--text-primary)]">{orderStats.total}</strong> orders</span>
         <span>·</span>
         <span><strong className="text-[var(--success)]">{orderStats.paid}</strong> paid</span>
@@ -214,8 +283,8 @@ export default function Orders() {
         <span>Revenue: <strong className="text-[var(--text-primary)]">{orderStats.totalRevenue.toLocaleString()}</strong></span>
       </div>
 
-      <div className="flex items-center justify-between border-b border-[var(--border)] mb-4 overflow-x-auto">
-        <div className="flex items-center gap-0">
+      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between border-b border-[var(--border)] mb-2 gap-4">
+        <div className="flex items-center gap-0 overflow-x-auto pb-1 max-w-full">
           {STATUS_TABS.map(s => (
             <button
               key={s.key}
@@ -235,23 +304,55 @@ export default function Orders() {
           ))}
         </div>
         
-        <button
-          onClick={exportOrders}
-          className="flex items-center gap-1 h-8 px-3 text-xs bg-[var(--input-bg)] border border-[var(--input-border)] rounded-md hover:bg-[var(--bg-hover)] transition-colors mb-2"
-        >
-          <Download size={12} />
-          Export
-        </button>
+        <div className="flex items-center gap-2 mb-1">
+          <div className="relative" ref={colSelectorRef}>
+            <button
+              onClick={() => setIsColumnSelectorOpen(!isColumnSelectorOpen)}
+              className="flex items-center gap-2 h-8 px-3 text-xs bg-[var(--input-bg)] border border-[var(--input-border)] rounded-md hover:bg-[var(--bg-hover)] transition-colors"
+            >
+              <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="hidden sm:inline">Columns</span>
+              <ChevronDown className="w-3 h-3 text-muted-foreground" />
+            </button>
+            
+            {isColumnSelectorOpen && (
+              <div className="absolute right-0 top-full mt-2 w-48 bg-card border border-border rounded-md shadow-lg z-50 py-1 max-h-64 overflow-y-auto">
+                {columns.map(col => (
+                  <label key={col.key} className="flex items-center gap-2 text-sm cursor-pointer px-3 py-1.5 hover:bg-muted">
+                    <input 
+                      type="checkbox" 
+                      checked={visibleColumns.includes(col.key)}
+                      onChange={() => toggleColumn(col.key)}
+                      className="rounded bg-background border-border accent-[var(--accent)]"
+                    />
+                    {col.header}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={exportOrders}
+            className="flex items-center gap-1 h-8 px-3 text-xs bg-[var(--input-bg)] border border-[var(--input-border)] rounded-md hover:bg-[var(--bg-hover)] transition-colors"
+          >
+            <Download className="w-3 h-3" />
+            Export
+          </button>
+        </div>
       </div>
 
-      <AdminTable 
-        isLoading={isLoading}
-        isEmpty={filteredOrders.length === 0}
-        columns={columns}
-        data={filteredOrders}
-        defaultSort={{ key: "created_at", dir: "desc" }}
-        sortFn={sortFn}
-      />
+      <div className="flex-1 min-h-0 flex flex-col border border-[var(--border)] rounded-lg bg-[var(--card-bg)] shadow-sm overflow-hidden">
+        <AdminTable 
+          columns={visibleColDefs} 
+          data={filteredOrders} 
+          isLoading={isLoading}
+          isEmpty={filteredOrders.length === 0}
+          className="flex-1 max-h-none border-0 rounded-none shadow-none"
+          sortFn={sortFn}
+          defaultSort={{ key: "created_at", dir: "desc" }}
+        />
+      </div>
 
       <IssueKeySlideOver open={issueKeyOpen} onClose={() => setIssueKeyOpen(false)} />
       <OrderDetailsSlideOver order={selectedOrder} onClose={() => setSelectedOrder(null)} />

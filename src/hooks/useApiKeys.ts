@@ -40,7 +40,13 @@ export function useUpdateBudget() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: { key: string; operation: "credit" | "debit"; amount: number; description: string }) => {
-      const res = await apiClient.put("/v1/admin/keys/update-budget", data)
+      const payload = {
+        key: data.key,
+        action: data.operation === "credit" ? "cr" : "dr",
+        budget: data.amount,
+        description: data.description
+      }
+      const res = await apiClient.put("/v1/admin/keys/update-budget", payload)
       return res.data
     },
     onSuccess: () => {

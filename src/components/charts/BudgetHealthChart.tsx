@@ -17,7 +17,7 @@ export const BudgetHealthChart = ({ keys }: { keys: ApiKey[] }) => {
           <div key={k.key} className="space-y-0.5">
             <div className="flex items-center justify-between text-[10px]">
               <span className="text-[var(--text-secondary)] truncate max-w-[100px]">{k.username}</span>
-              <span className="font-mono text-[var(--text-muted)]">${remaining.toFixed(0)}</span>
+              <span className="font-mono text-[var(--text-muted)]">{remaining.toFixed(0)} sec</span>
             </div>
             <div className="h-1.5 bg-[var(--bg-elevated)] rounded-full overflow-hidden">
               <div
