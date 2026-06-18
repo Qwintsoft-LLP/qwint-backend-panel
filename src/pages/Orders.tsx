@@ -88,7 +88,7 @@ export default function Orders() {
       product: o.product_id,
       amount: o.amount,
       currency: o.currency,
-      credits_minutes: o.credits_minutes,
+      credits: o.credits_raw ?? o.credits,
       status: o.status,
       payment_id: o.razorpay_payment_id,
       api_key: o.api_key,
