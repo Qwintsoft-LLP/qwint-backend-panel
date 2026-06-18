@@ -11,3 +11,6 @@ services:
     environment:
       - PORT=${PORT:-80}
     restart: unless-stopped
+    labels:
+      - 'caddy_0.basicauth=/*'
+      - 'caddy_0.basicauth.qwintsoft=$$2b$$10$$oCFVXBLwDD9evlwd7eEvU.h5r2fl3yJkOjnqyB.XpFi3NO3uWHOnm'
