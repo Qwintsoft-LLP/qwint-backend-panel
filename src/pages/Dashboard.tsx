@@ -24,7 +24,6 @@ export default function Dashboard() {
   const systemErrors = logs.filter(l => l.level === "error").length
   
   // Lifetime credits used (Source of truth: Logs)
-  const totalRemainingBudget = keys.reduce((sum, k) => sum + Number(k.remaining_budget || 0), 0)
   const lifetimeCreditsUsed = logs.reduce((sum, l) => sum + Number(l.credits_deducted || 0), 0)
 
   // Operational Metrics
