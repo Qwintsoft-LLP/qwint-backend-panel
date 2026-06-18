@@ -39,6 +39,19 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     // Network-first strategy for a dashboard
     fetch(event.request)
+      .then(response => {
+        // Only cache valid responses (not Chrome extensions, etc.)
+        if (!response || response.status !== 200 || response.type !== 'basic') {
+          return response;
+        }
+        // Clone the response before caching
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME)
+          .then(cache => {
+            cache.put(event.request, responseToCache);
+          });
+        return response;
+      })
       .catch(() => {
         return caches.match(event.request)
           .then(response => {
