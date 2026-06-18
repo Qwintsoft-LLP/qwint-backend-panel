@@ -261,7 +261,7 @@ export default function ApiKeys() {
             <SelectItem value="healthy">Healthy (≥70%)</SelectItem>
             <SelectItem value="warning">Low (30–70%)</SelectItem>
             <SelectItem value="critical">Critical (&lt;30%)</SelectItem>
-            <SelectItem value="empty">Exhausted ($0)</SelectItem>
+            <SelectItem value="empty">Exhausted (0 cr)</SelectItem>
           </SelectContent>
         </Select>
 
@@ -383,7 +383,7 @@ function GenerateKeySlideOver({ open, onClose }: { open: boolean; onClose: () =>
               <input required type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full h-9 px-3 bg-background border border-border rounded-md text-sm" />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Budget ($)</label>
+            <label className="text-sm font-medium mb-1.5 block">Budget (Credits)</label>
               <input required type="number" min="0" step="1" value={budget} onChange={e => setBudget(e.target.value)} className="w-full h-9 px-3 bg-background border border-border rounded-md text-sm" />
             </div>
             <div>

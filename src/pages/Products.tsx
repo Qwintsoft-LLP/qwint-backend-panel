@@ -58,7 +58,7 @@ function ProductRow({ product, isEditing, onEdit, onCancel }: { product: Product
     <tr className="border-b border-border/50 hover:bg-muted/50 transition-colors h-[40px]">
       <td className="px-3"><CopyField value={product.product_id} truncate={8} /></td>
       <td className="px-3 font-medium">{product.name}</td>
-      <td className="px-3 text-right font-mono">${product.amount}</td>
+      <td className="px-3 text-right font-mono">{product.amount}</td>
       <td className="px-3 text-right font-mono">{product.credits} cr</td>
       <td className="px-3 text-muted-foreground">{product.currency}</td>
       <td className="px-3 text-right">
