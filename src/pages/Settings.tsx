@@ -5,9 +5,9 @@ import { useToast } from "@/hooks/use-toast"
 
 export default function Settings() {
   const { toast } = useToast()
-  const [baseUrl, setBaseUrl] = useState(getStorage(STORAGE_KEYS.API_BASE_URL) || "http://localhost:3000/api")
-  const [masterKey, setMasterKey] = useState(getStorage(STORAGE_KEYS.MASTER_KEY))
-  const [adminKey, setAdminKey] = useState(getStorage(STORAGE_KEYS.ADMIN_KEY))
+  const [baseUrl, setBaseUrl] = useState(getStorage(STORAGE_KEYS.API_BASE_URL) || "https://awgw38j7f03qa8i601ykib1r.3.shreylink.in/api")
+  const [masterKey, setMasterKey] = useState(getStorage(STORAGE_KEYS.MASTER_KEY) || "ac24dfdb-959d-41cb-babe-af203a962a27")
+  const [adminKey, setAdminKey] = useState(getStorage(STORAGE_KEYS.ADMIN_KEY) || "change-me")
   const [jwt, setJwt] = useState(getStorage(STORAGE_KEYS.JWT))
 
   const handleSave = () => {

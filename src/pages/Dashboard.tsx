@@ -66,7 +66,7 @@ export default function Dashboard() {
         <MetricCard 
           label="Budget Allocated" 
           value={keysLoading ? "..." : formatCredits(totalBudget)} 
-          subValue={keysLoading ? null : `${lowBudgetKeysCount} keys have < $10 left`}
+          subValue={keysLoading ? null : `${lowBudgetKeysCount} keys have < 10 cr left`}
           icon={<CreditCard className="w-5 h-5 text-muted-foreground" />} 
         />
         <MetricCard
@@ -105,11 +105,11 @@ export default function Dashboard() {
       </div>
 
       <StatsBar stats={[
-        { label: "Total Keys",     value: keys.length },
-        { label: "Total Budget",   value: `$${totalBudget.toLocaleString()}` },
-        { label: "Avg Key Budget", value: `$${avgBudget}` },
-        { label: "Top App",        value: topApp },
-        { label: "Keys Used Today",value: usedToday },
+        { label: "Total Keys",     value: keysLoading ? "..." : keys.length },
+        { label: "Active Keys",    value: keysLoading ? "..." : keys.filter(k => k.status === 'ACTIVE').length },
+        { label: "Total Budget",   value: `${totalBudget.toLocaleString()} cr` },
+        { label: "Avg Key Budget", value: `${avgBudget} cr` },
+        { label: "System Load",    value: logsLoading ? "..." : `${avgResponseTime}ms avg` },
       ]} />
 
       {/* Activity and Wallets (Original) */}

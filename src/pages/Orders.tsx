@@ -117,7 +117,7 @@ export default function Orders() {
       sortable: true,
       cell: o => (
         <>
-      {Number(o.amount || 0) > 0 && <div className="font-mono text-sm">${Number(o.amount || 0).toFixed(2)} {o.currency}</div>}
+      {Number(o.amount || 0) > 0 && <div className="font-mono text-sm">{Number(o.amount || 0).toFixed(2)} {o.currency}</div>}
           {o.credits_raw > 0 && <div className="text-xs font-mono text-muted-foreground mt-0.5">{o.credits_raw} {o.credits_unit}</div>}
         </>
       )
@@ -211,7 +211,7 @@ export default function Orders() {
         <span>·</span>
         <span><strong className="text-[var(--error)]">{orderStats.failed}</strong> failed</span>
         <span>·</span>
-        <span>Revenue: <strong className="text-[var(--text-primary)]">${orderStats.totalRevenue.toLocaleString()}</strong></span>
+        <span>Revenue: <strong className="text-[var(--text-primary)]">{orderStats.totalRevenue.toLocaleString()}</strong></span>
       </div>
 
       <div className="flex items-center justify-between border-b border-[var(--border)] mb-4 overflow-x-auto">
@@ -300,7 +300,7 @@ function IssueKeySlideOver({ open, onClose }: { open: boolean; onClose: () => vo
             <input required type="text" value={mobile} onChange={e => setMobile(e.target.value)} className="w-full h-9 px-3 bg-background border border-border rounded-md text-sm" />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Budget ($)</label>
+            <label className="text-sm font-medium mb-1.5 block">Budget (Credits)</label>
             <input required type="number" min="0" step="1" value={budget} onChange={e => setBudget(e.target.value)} className="w-full h-9 px-3 bg-background border border-border rounded-md text-sm" />
           </div>
           <div>
