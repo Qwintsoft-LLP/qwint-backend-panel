@@ -106,10 +106,11 @@ export default function Dashboard() {
 
       <StatsBar stats={[
         { label: "Total Keys",     value: keysLoading ? "..." : keys.length },
-        { label: "Active Keys",    value: keysLoading ? "..." : keys.filter(k => k.status === 'ACTIVE').length },
+        { label: "Active Keys",    value: keysLoading ? "..." : activeKeysCount },
         { label: "Total Budget",   value: `${totalBudget.toLocaleString()} cr` },
         { label: "Avg Key Budget", value: `${avgBudget} cr` },
-        { label: "System Load",    value: logsLoading ? "..." : `${avgResponseTime}ms avg` },
+        { label: "Top App",        value: topApp },
+        { label: "Keys Used Today",value: usedToday },
       ]} />
 
       {/* Activity and Wallets (Original) */}
