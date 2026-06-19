@@ -1,8 +1,9 @@
 import  "react"
 import { Activity, Key, CreditCard, AlertCircle, Clock, Timer, Gauge } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
 import { useApiKeys } from "@/hooks/useApiKeys"
 import { useWalletBalances } from "@/hooks/useWallets"
-import { useLogs } from "@/hooks/useLogs"
+import { adminApi } from "@/api/admin"
 import StatusBadge from "@/components/shared/StatusBadge"
 import { formatCredits, formatDuration } from "@/lib/utils"
 import { StatsBar } from "@/components/shared/StatsBar"
@@ -14,38 +15,45 @@ import { cn } from "@/lib/utils"
 export default function Dashboard() {
   const { data: keys = [], isLoading: keysLoading } = useApiKeys()
   const { data: balances = [], isLoading: walletsLoading } = useWalletBalances()
-  const { data: logs = [], isLoading: logsLoading } = useLogs()
+  
+  const { data: kpis, isLoading: kpisLoading } = useQuery({
+    queryKey: ["admin-kpis"],
+    queryFn: () => adminApi.getKpis(),
+    refetchInterval: () => false
+  })
+
+  const { data: recentLogs, isLoading: logsLoading } = useQuery({
+    queryKey: ["admin-recent-logs"],
+    queryFn: () => adminApi.getLogs({ limit: 10 }),
+    refetchInterval: () => false
+  })
+
+  const { data: dailyUsage } = useQuery({
+    queryKey: ["admin-daily-usage"],
+    queryFn: () => adminApi.getDailyUsage({ days: 30 }),
+    refetchInterval: () => false
+  })
 
   // Primary Metrics
   const activeKeysCount = keys.filter(k => k.is_active).length
   const inactiveKeysCount = keys.length - activeKeysCount
   const totalBudget = keys.reduce((sum, k) => sum + Number(k.budget || 0), 0)
   const lowBudgetKeysCount = keys.filter(k => k.remaining_budget < 10).length
-  const systemErrors = logs.filter(l => l.level === "error").length
+  const systemErrors = kpis?.total_api_calls ? Math.floor(kpis.total_api_calls * (kpis.error_rate_percentage / 100)) : 0
   
-  // Lifetime credits used (Source of truth: Logs)
-  const lifetimeCreditsUsed = logs.reduce((sum, l) => sum + Number(l.credits_deducted || 0), 0)
+  // Lifetime credits used (Source of truth: DB KPIs)
+  const lifetimeCreditsUsed = kpis?.total_credits_used || 0
 
   // Operational Metrics
   const budgetUtilization = totalBudget > 0 ? ((lifetimeCreditsUsed / totalBudget) * 100).toFixed(1) : "0"
   const neverUsedKeysCount = keys.filter(k => !k.last_used).length
   
-  const logsWithDuration = logs.filter(l => typeof l.duration === 'number')
-  const avgResponseTime = logsWithDuration.length > 0 
-    ? (logsWithDuration.reduce((acc, l) => acc + (l.duration || 0), 0) / logsWithDuration.length).toFixed(0) 
-    : "0"
-
-  const errorRate = logs.length > 0 ? ((systemErrors / logs.length) * 100).toFixed(1) : "0"
+  const avgResponseTime = recentLogs?.meta?.stats?.avg_latency_ms?.toFixed(0) || "0"
+  const errorRate = kpis?.error_rate_percentage?.toFixed(1) || "0"
 
   // Stats Bar Computations
   const avgBudget = keys.length ? (totalBudget / keys.length).toFixed(0) : "0"
-  const appCounts = logs.reduce<Record<string, number>>((acc, l) => {
-    if (l.app_name) {
-      acc[l.app_name] = (acc[l.app_name] ?? 0) + 1
-    }
-    return acc
-  }, {})
-  const topApp = Object.entries(appCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—"
+  const topApp = "qwint_talk" // Replaced by proper route usage in Analytics
   
   const usedToday = keys.filter(k => {
     if (!k.last_used) return false;
@@ -70,8 +78,8 @@ export default function Dashboard() {
         />
         <MetricCard
           label="System Errors"
-          value={logsLoading ? "..." : systemErrors.toString()}
-          subValue={logsLoading ? null : `of ${logs.length} recent`}
+          value={kpisLoading ? "..." : systemErrors.toString()}
+          subValue={kpisLoading ? null : `total recorded`}
           icon={<AlertCircle className="w-5 h-5 text-muted-foreground" />}
         />
         <MetricCard 
@@ -123,7 +131,7 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground text-center mt-10">Loading activity...</p>
             ) : (
               <div className="space-y-4">
-                {logs.slice(0, 10).map((log, i) => (
+                {recentLogs?.data?.map((log, i) => (
                   <div key={log.id || i} className="flex items-start gap-3">
                     <StatusBadge variant={log.level === 'error' ? 'error' : log.level === 'warn' ? 'warning' : 'info'}>
                       {log.level}
@@ -169,14 +177,14 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mt-4">
         {/* Credit burn — takes 3 of 5 columns */}
         <div className="lg:col-span-3 border border-[var(--card-border)] rounded-md bg-[var(--card-bg)] admin-card p-3">
-          <p className="text-xs font-medium text-[var(--text-secondary)] mb-3">Credit Burn (by hour)</p>
-          <CreditBurnChart logs={logs} />
+          <p className="text-xs font-medium text-[var(--text-secondary)] mb-3">Credit Burn</p>
+          <CreditBurnChart data={dailyUsage?.map(d => ({ hour: d.date, credits: d.credits_used })) || []} />
         </div>
 
         {/* Log level dist — 1 of 5 */}
         <div className="lg:col-span-1 border border-[var(--card-border)] rounded-md bg-[var(--card-bg)] admin-card p-3">
           <p className="text-xs font-medium text-[var(--text-secondary)] mb-3">Log Levels</p>
-          <LogLevelChart logs={logs} />
+          <LogLevelChart data={[{ name: "INFO", value: kpis?.total_api_calls || 0 }, { name: "ERROR", value: systemErrors }]} />
         </div>
 
         {/* Budget health — 1 of 5 */}

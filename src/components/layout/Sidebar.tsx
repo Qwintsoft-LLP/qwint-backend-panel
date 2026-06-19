@@ -1,10 +1,11 @@
 import { NavLink } from "react-router-dom"
-import { LayoutDashboard, Key, Wallet, Package, ShoppingCart, Activity, Settings, BarChart2 } from "lucide-react"
+import { LayoutDashboard, Gauge, Key, Wallet, Package, ShoppingCart, Activity, Settings, BarChart2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
   { label: "OVERVIEW" },
   { name: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
+  { name: "Usage", to: "/usage", icon: Gauge },
   { name: "Analytics", to: "/analytics", icon: BarChart2 },
   { label: "MANAGEMENT" },
   { name: "API Keys", to: "/api-keys", icon: Key },
@@ -14,6 +15,7 @@ const navItems = [
   { name: "Orders", to: "/payments/orders", icon: ShoppingCart },
   { label: "SYSTEM" },
   { name: "Logs", to: "/logs", icon: Activity },
+
   { label: "CONFIG" },
   { name: "Settings", to: "/settings", icon: Settings },
 ]
@@ -54,6 +56,11 @@ export default function Sidebar() {
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 <span className="ml-3 truncate md:hidden lg:block">{item.name}</span>
+                {(item as { pill?: string }).pill && (
+                  <span className="ml-auto text-[8px] font-bold bg-[var(--accent)]/20 text-[var(--accent)] px-1.5 py-0.5 rounded md:hidden lg:flex">
+                    {(item as { pill?: string }).pill}
+                  </span>
+                )}
               </NavLink>
             )
           }

@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from "react"
-import { useLogs, LogEntry } from "@/hooks/useLogs"
+import { useNavigate } from "react-router-dom"
+import { usePaginatedLogs, LogEntry } from "@/hooks/useLogs"
 import AdminTable from "@/components/shared/AdminTable"
 import StatusBadge from "@/components/shared/StatusBadge"
 import CopyField from "@/components/shared/CopyField"
 import SlideOver from "@/components/shared/SlideOver"
-import { ExternalLink, RefreshCw, Settings, ChevronDown, Download, AlertTriangle } from "lucide-react"
+import { ExternalLink, RefreshCw, Settings, ChevronDown, Download, AlertTriangle, FlaskConical } from "lucide-react"
 import { exportToCsv } from "@/lib/export"
 import { useLogFilters } from "@/hooks/useLogFilters"
 import { cn } from "@/lib/utils"
@@ -58,7 +59,6 @@ const STANDARD_COLUMNS = [
 ]
 
 export default function Logs() {
-  const { data: logs, isLoading, refetch } = useLogs()
   const filters = useLogFilters()
   
   const [live, setLive] = useState(false)
@@ -69,6 +69,25 @@ export default function Logs() {
 
   const [itemsPerPage, setItemsPerPage] = useState<number | "All">(50)
   const [currentPage, setCurrentPage] = useState(1)
+
+  const { data: paginatedResponse, isLoading, refetch } = usePaginatedLogs({
+    page: currentPage,
+    limit: itemsPerPage === "All" ? 1000 : itemsPerPage,
+    search: filters.search || undefined,
+    level: filters.level !== "all" ? filters.level : undefined,
+    method: filters.method !== "all" ? filters.method : undefined,
+    app_name: filters.app !== "all" ? filters.app : undefined,
+    api_key: filters.apiKey || undefined,
+    user_id: filters.userId || undefined,
+    date_from: filters.dateFrom || undefined,
+    date_to: filters.dateTo || undefined,
+    sort_by: sortColumn,
+    sort_order: sortDirection
+  })
+
+  const logs = paginatedResponse?.data || []
+  const paginatedLogs = logs
+  const totalPages = paginatedResponse?.meta.total_pages || 1
 
   const [isColumnSelectorOpen, setIsColumnSelectorOpen] = useState(false)
   const colSelectorRef = useRef<HTMLDivElement>(null)
@@ -103,82 +122,21 @@ export default function Logs() {
     setCurrentPage(1)
   }, [filters.search, filters.level, filters.app, filters.method, sortColumn, sortDirection, itemsPerPage, filters.dateFrom, filters.dateTo])
 
-  const filteredLogs = logs?.filter(log => {
-    const search = filters.search;
-    const matchesSearch = search === "" || 
-      log.message?.toLowerCase().includes(search.toLowerCase()) || 
-      log.url?.toLowerCase().includes(search.toLowerCase()) ||
-      log.api_key?.includes(search) ||
-      log.user_id?.includes(search) ||
-      log.request_id?.toLowerCase().includes(search.toLowerCase())
-    
-    const matchesLevel = filters.level === "all" || log.level === filters.level
-    const matchesApp = filters.app === "all" || log.app_name === filters.app
-    const matchesMethod = filters.method === "all" || log.method?.toUpperCase() === filters.method.toUpperCase()
-    
-    const logDate = new Date(log.created_at)
-    const matchesStartDate = !filters.dateFrom || logDate >= new Date(filters.dateFrom)
-    const matchesEndDate = !filters.dateTo || logDate <= new Date(filters.dateTo + 'T23:59:59.999Z')
-    
-    const matchesApiKey = !filters.apiKey || log.api_key === filters.apiKey
-    const matchesUserId = !filters.userId || log.user_id === filters.userId
-    
-    return matchesSearch && matchesLevel && matchesApp && matchesMethod && matchesStartDate && matchesEndDate && matchesApiKey && matchesUserId
-  })?.sort((a, b) => {
-    if (!sortColumn) return 0
-    let aVal = (a as any)[sortColumn] ?? a.metadata?.[sortColumn]
-    let bVal = (b as any)[sortColumn] ?? b.metadata?.[sortColumn]
-    
-    if (aVal === undefined) aVal = ""
-    if (bVal === undefined) bVal = ""
-    
-    if (aVal < bVal) return sortDirection === "asc" ? -1 : 1
-    if (aVal > bVal) return sortDirection === "asc" ? 1 : -1
-    return 0
-  }) || []
-
   const logStats = useMemo(() => {
-    let totalTokens = 0;
-    let promptTokens = 0;
-    let thoughtsTokens = 0;
-    let candidatesTokens = 0;
-    
-    filteredLogs.forEach(l => {
-      if (l.metadata) {
-        Object.entries(l.metadata).forEach(([k, v]) => {
-          const keyLower = k.toLowerCase();
-          const val = Number(v) || 0;
-          if (keyLower === 'totaltokencount' || keyLower === 'totaltokens') {
-            totalTokens += val;
-          } else if (keyLower === 'prompttokencount' || keyLower === 'prompttokens') {
-            promptTokens += val;
-          } else if (keyLower === 'thoughtstokencount' || keyLower === 'thoughtstokens') {
-            thoughtsTokens += val;
-          } else if (keyLower === 'candidatestokencount' || keyLower === 'candidatestokens') {
-            candidatesTokens += val;
-          }
-        });
-      }
-    });
-
+    const stats = paginatedResponse?.meta?.stats;
     return {
-      total:    filteredLogs.length,
-      errors:   filteredLogs.filter(l => l.level === "error").length,
-      avgMs:    filteredLogs.filter(l => l.duration).reduce((s, l, _, a) => s + Number(l.duration ?? 0) / a.length, 0),
-      credits:  filteredLogs.reduce((s, l) => s + Number(l.credits_deducted ?? 0), 0),
-      totalTokens,
-      promptTokens,
-      thoughtsTokens,
-      candidatesTokens,
+      total:    paginatedResponse?.meta?.total_items || 0,
+      errors:   stats?.total_errors || 0,
+      avgMs:    stats?.avg_latency_ms || 0,
+      credits:  stats?.total_credits_deducted || 0,
+      totalTokens: stats?.total_tokens || 0,
+      promptTokens: stats?.prompt_tokens || 0,
+      thoughtsTokens: stats?.thoughts_tokens || 0,
+      candidatesTokens: stats?.candidates_tokens || 0,
     };
-  }, [filteredLogs])
+  }, [paginatedResponse])
 
-  const totalPages = itemsPerPage === "All" ? 1 : Math.ceil(filteredLogs.length / itemsPerPage)
-  const paginatedLogs = itemsPerPage === "All" 
-    ? filteredLogs 
-    : filteredLogs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-
-  const appNames = Array.from(new Set(logs?.map(l => l.app_name).filter(Boolean)))
+  const appNames = ["qwint_talk", "qwint_caption"];
 
   const SortableHeader = ({ column, label }: { column: string, label: string }) => (
     <button 
@@ -206,7 +164,7 @@ export default function Logs() {
   }
 
   const exportFiltered = () => {
-    exportToCsv(`logs-${Date.now()}.csv`, filteredLogs.map(l => ({
+    exportToCsv(`logs-${Date.now()}.csv`, paginatedLogs.map(l => ({
       time:     l.created_at,
       level:    l.level,
       method:   l.method,
@@ -516,7 +474,7 @@ export default function Logs() {
           </AdminTable>
         
         {/* Pagination controls */}
-        {filteredLogs.length > 0 && (
+        {(paginatedResponse?.meta?.total_items || 0) > 0 && (
           <div className="flex flex-wrap items-center justify-between p-3 shrink-0 border-t border-[var(--border)] bg-[var(--card-bg)] mt-auto z-10 relative">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>Rows per page:</span>
@@ -538,9 +496,9 @@ export default function Logs() {
             <div className="flex items-center gap-4 mt-4 sm:mt-0">
               <div className="text-sm text-muted-foreground">
                 {itemsPerPage === "All" ? (
-                  `Showing all ${filteredLogs.length} results`
+                  `Showing all ${paginatedResponse?.meta?.total_items || 0} results`
                 ) : (
-                  `Showing ${(currentPage - 1) * itemsPerPage + 1} to ${Math.min(currentPage * itemsPerPage, filteredLogs.length)} of ${filteredLogs.length} results`
+                  `Showing ${(currentPage - 1) * itemsPerPage + 1} to ${Math.min(currentPage * itemsPerPage, paginatedResponse?.meta?.total_items || 0)} of ${paginatedResponse?.meta?.total_items || 0} results`
                 )}
               </div>
               <div className="flex gap-2">
@@ -570,6 +528,7 @@ export default function Logs() {
 }
 
 function LogDetailSlideOver({ log, onClose }: { log: LogEntry | null; onClose: () => void }) {
+  const navigate = useNavigate()
   if (!log) return null
 
   return (
@@ -660,12 +619,34 @@ function LogDetailSlideOver({ log, onClose }: { log: LogEntry | null; onClose: (
           </div>
         )}
 
-        {log.metadata && (
+          {log.metadata && (
           <div className="space-y-2">
             <h3 className="text-sm font-medium">Metadata</h3>
             <pre className="p-3 bg-muted rounded-md text-xs font-mono overflow-x-auto">
               {JSON.stringify(log.metadata, null, 2)}
             </pre>
+          </div>
+        )}
+
+        {/* ── Langfuse shortcuts ─────────────────────────────────── */}
+        {log.api_key && (
+          <div className="pt-2 border-t border-border flex flex-col gap-2">
+            <button
+              className="flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline text-left"
+              onClick={() => { navigate(`/langfuse?key=${encodeURIComponent(log.api_key!)}`); onClose(); }}
+            >
+              <FlaskConical size={12} />
+              View key traces in Langfuse →
+            </button>
+            {log.request_id && (
+              <button
+                className="flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline text-left"
+                onClick={() => { navigate(`/langfuse?session=${encodeURIComponent(log.request_id!)}`); onClose(); }}
+              >
+                <FlaskConical size={12} />
+                Find LLM calls for this request →
+              </button>
+            )}
           </div>
         )}
       </div>

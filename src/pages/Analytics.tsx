@@ -10,7 +10,6 @@ import { TopKeysChart }      from "./analytics/charts/TopKeysChart";
 import { ResponseTimeChart } from "./analytics/charts/ResponseTimeChart";
 import { BudgetHealthBars }  from "./analytics/charts/BudgetHealthBars";
 import { HourlyHeatmap }     from "./analytics/charts/HourlyHeatmap";
-import { RawEventsTable }    from "./analytics/RawEventsTable";
 
 export default function Analytics() {
   const d = useAnalyticsData();
@@ -21,7 +20,7 @@ export default function Analytics() {
       {/* Header */}
       <PageHeader
         title="Analytics"
-        subtitle={`${d.logs.length.toLocaleString()} events in selected range`}
+        subtitle={`${d.kpis.total.toLocaleString()} events in selected range`}
         actions={
           <AnalyticsFilters
             preset={d.preset}          setPreset={d.setPreset}
@@ -134,8 +133,7 @@ export default function Analytics() {
         <HourlyHeatmap data={d.hourlyHeatmap} />
       </ChartCard>
 
-      {/* Row 5 — Raw Events Table */}
-      <RawEventsTable logs={d.logs} />
+      {/* Row 5 removed (RawEventsTable) */}
 
       {/* Row 6 — Budget health */}
       <ChartCard

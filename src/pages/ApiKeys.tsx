@@ -216,6 +216,7 @@ export default function ApiKeys() {
           >
             <Download className="w-4 h-4" />
           </button>
+
           <Link
             to={`/logs?key=${r.key}`}
             className="p-1 rounded hover:bg-background border border-transparent hover:border-border text-muted-foreground hover:text-foreground transition-all"

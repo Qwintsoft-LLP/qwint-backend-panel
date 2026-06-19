@@ -11,6 +11,8 @@ import Orders from "@/pages/Orders"
 import Logs from "@/pages/Logs"
 import Settings from "@/pages/Settings"
 import Analytics from "@/pages/Analytics"
+import LangfusePage from "@/pages/Langfuse"
+import UsagePage from "@/pages/Usage"
 import AppShell from "@/components/layout/AppShell"
 
 const queryClient = new QueryClient()
@@ -26,13 +28,15 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: "dashboard", element: <Dashboard /> },
-      { path: "api-keys", element: <ApiKeys /> },
+      { path: "usage",     element: <UsagePage /> },
+      { path: "api-keys",  element: <ApiKeys /> },
       { path: "wallets", element: <Wallets /> },
       { path: "wallets/:userId", element: <WalletDetail /> },
       { path: "payments/products", element: <Products /> },
       { path: "payments/orders", element: <Orders /> },
-      { path: "logs", element: <Logs /> },
-      { path: "settings", element: <Settings /> },
+      { path: "logs",      element: <Logs /> },
+      { path: "langfuse",  element: <LangfusePage /> },
+      { path: "settings",  element: <Settings /> },
       { path: "analytics", element: <Analytics /> },
     ],
   },
