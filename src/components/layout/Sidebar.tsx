@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom"
-import { LayoutDashboard, Gauge, Key, Wallet, Package, ShoppingCart, Activity, Settings, BarChart2 } from "lucide-react"
+import { LayoutDashboard, Gauge, Key, Wallet, Package, ShoppingCart, Activity, Settings, BarChart2, Users, FlaskConical } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
@@ -8,12 +8,14 @@ const navItems = [
   { name: "Usage", to: "/usage", icon: Gauge },
   { name: "Analytics", to: "/analytics", icon: BarChart2 },
   { label: "MANAGEMENT" },
+  { name: "Users", to: "/users", icon: Users },
   { name: "API Keys", to: "/api-keys", icon: Key },
-  { name: "Wallets & Users", to: "/wallets", icon: Wallet },
+  { name: "Wallets", to: "/wallets", icon: Wallet },
   { label: "BILLING" },
   { name: "Products & Pricing", to: "/payments/products", icon: Package },
   { name: "Orders", to: "/payments/orders", icon: ShoppingCart },
   { label: "SYSTEM" },
+  { name: "Langfuse", to: "/langfuse", icon: FlaskConical },
   { name: "Logs", to: "/logs", icon: Activity },
 
   { label: "CONFIG" },

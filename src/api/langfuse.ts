@@ -11,10 +11,24 @@ langfuseClient.interceptors.request.use(config => {
   return config;
 });
 
+// ── Retry with exponential backoff for 429 rate limits ──
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 2000;
+
 langfuseClient.interceptors.response.use(
   res => res,
-  err => {
-    const status  = err.response?.status;
+  async err => {
+    const config = err.config;
+    const status = err.response?.status;
+
+    // Retry on 429 (rate limit) with exponential backoff
+    if (status === 429 && config && (config._retryCount ?? 0) < MAX_RETRIES) {
+      config._retryCount = (config._retryCount ?? 0) + 1;
+      const delay = BASE_DELAY_MS * Math.pow(2, config._retryCount - 1);
+      await new Promise(r => setTimeout(r, delay));
+      return langfuseClient(config);
+    }
+
     const message = err.response?.data?.message ?? err.message ?? "Langfuse error";
     return Promise.reject({ status, message, isLangfuse: true });
   }
