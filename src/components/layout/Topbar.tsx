@@ -1,13 +1,22 @@
 
 import { useLocation } from "react-router-dom"
 import { useEffect, useState } from "react"
-import { getStorage, STORAGE_KEYS, setStorage } from "@/lib/storage"
+import { getStorage, STORAGE_KEYS, setStorage, getEnvironments, getActiveEnvId, setActiveEnvId, Environment } from "@/lib/storage"
 import { Moon as MoonIcon, Sun as SunIcon, Menu as MenuIcon } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export default function Topbar({ onToggleSidebar, children }: { onToggleSidebar: () => void, children?: React.ReactNode }) {
   const location = useLocation()
   const [theme, setTheme] = useState(getStorage(STORAGE_KEYS.THEME) || "dark")
   const [keysConfigured, setKeysConfigured] = useState(0)
+  const [envs, setEnvs] = useState<Environment[]>([])
+  const [activeEnvId, setActiveEnvIdState] = useState("")
 
   useEffect(() => {
     const root = window.document.documentElement
@@ -23,7 +32,24 @@ export default function Topbar({ onToggleSidebar, children }: { onToggleSidebar:
     if (mk) c++
     if (ak) c++
     setKeysConfigured(c)
+
+    // Load environments
+    try {
+      const activeId = getActiveEnvId()
+      const list = getEnvironments()
+      setEnvs(list)
+      setActiveEnvIdState(activeId)
+    } catch (err) {
+      console.error(err)
+    }
   }, [location.pathname])
+
+  const handleSwitch = (id: string) => {
+    if (id === activeEnvId) return
+    setActiveEnvId(id)
+    setActiveEnvIdState(id)
+    window.location.reload()
+  }
 
   const routeName = location.pathname.split('/').filter(Boolean).pop()?.replace('-', ' ') || 'Dashboard'
 
@@ -40,6 +66,21 @@ export default function Topbar({ onToggleSidebar, children }: { onToggleSidebar:
       </div>
 
       <div className="flex items-center gap-4">
+        {activeEnvId && envs.length > 0 && (
+          <Select value={activeEnvId} onValueChange={handleSwitch}>
+            <SelectTrigger className="h-7 w-auto min-w-[80px] bg-muted hover:bg-muted/80 text-muted-foreground border border-border rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider focus:ring-0 focus:ring-offset-0 transition-colors gap-1 [&>span]:line-clamp-1 [&>span]:w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end" className="bg-popover text-popover-foreground border border-border">
+              {envs.map((env) => (
+                <SelectItem key={env.id} value={env.id} className="text-xs uppercase font-semibold">
+                  {env.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
         <button 
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           className="p-1.5 rounded hover:bg-muted text-muted-foreground transition-colors"

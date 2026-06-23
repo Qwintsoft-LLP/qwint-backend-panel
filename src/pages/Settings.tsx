@@ -1,21 +1,98 @@
-import { useState } from "react"
-import { getStorage, setStorage, STORAGE_KEYS, getLangfuseSettings } from "@/lib/storage"
-import { Eye, EyeOff, FlaskConical } from "lucide-react"
+import { useState, useEffect } from "react"
+import {
+  getStorage,
+  setStorage,
+  STORAGE_KEYS,
+  getLangfuseSettings,
+  getEnvironments,
+  getActiveEnvId,
+  setActiveEnvId,
+  saveEnvironment,
+  addEnvironment,
+  deleteEnvironment,
+  Environment
+} from "@/lib/storage"
+import { Eye, EyeOff, FlaskConical, Globe, Server, Laptop, Settings as SettingsIcon, Plus, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 
 export default function Settings() {
   const { toast } = useToast()
+  const [envs, setEnvs] = useState<Environment[]>([])
+  const [activeEnvId, setActiveEnvIdState] = useState<string>("")
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [newEnvName, setNewEnvName] = useState("")
+
   const [baseUrl, setBaseUrl] = useState(getStorage(STORAGE_KEYS.API_BASE_URL))
   const [masterKey, setMasterKey] = useState(getStorage(STORAGE_KEYS.MASTER_KEY))
   const [adminKey, setAdminKey] = useState(getStorage(STORAGE_KEYS.ADMIN_KEY))
   const [jwt, setJwt] = useState(getStorage(STORAGE_KEYS.JWT))
+
+  useEffect(() => {
+    setEnvs(getEnvironments())
+    setActiveEnvIdState(getActiveEnvId())
+  }, [])
+
+  useEffect(() => {
+    setBaseUrl(getStorage(STORAGE_KEYS.API_BASE_URL))
+    setMasterKey(getStorage(STORAGE_KEYS.MASTER_KEY))
+    setAdminKey(getStorage(STORAGE_KEYS.ADMIN_KEY))
+    setJwt(getStorage(STORAGE_KEYS.JWT))
+  }, [activeEnvId])
+
+  const handleSwitch = (id: string) => {
+    if (id === activeEnvId) return
+    setActiveEnvId(id)
+    setActiveEnvIdState(id)
+    toast({
+      title: "Environment Switched",
+      description: `Active environment set to ${envs.find(e => e.id === id)?.name || id}.`,
+    })
+    setTimeout(() => window.location.reload(), 500)
+  }
+
+  const handleDelete = (env: Environment) => {
+    if (window.confirm(`Are you sure you want to delete the "${env.name}" environment?`)) {
+      deleteEnvironment(env.id)
+      toast({
+        title: "Environment Deleted",
+        description: `Successfully removed environment "${env.name}".`,
+      })
+      setTimeout(() => window.location.reload(), 500)
+    }
+  }
+
+  const handleAddEnv = () => {
+    if (!newEnvName.trim()) return
+    const createdName = newEnvName.trim()
+    addEnvironment(createdName)
+    setShowAddModal(false)
+    setNewEnvName("")
+    toast({
+      title: "Environment Created",
+      description: `Created and switched to environment "${createdName}".`,
+    })
+    setTimeout(() => window.location.reload(), 500)
+  }
 
   const handleSave = () => {
     setStorage(STORAGE_KEYS.API_BASE_URL, baseUrl)
     setStorage(STORAGE_KEYS.MASTER_KEY, masterKey)
     setStorage(STORAGE_KEYS.ADMIN_KEY, adminKey)
     setStorage(STORAGE_KEYS.JWT, jwt)
+
+    // Save to active environment entry in environments array
+    const env = envs.find(e => e.id === activeEnvId)
+    if (env) {
+      saveEnvironment({
+        ...env,
+        baseUrl,
+        masterKey,
+        adminKey,
+        jwt
+      })
+    }
+
     toast({
       title: "Settings saved",
       description: "Configuration has been updated in local storage.",
@@ -23,12 +100,79 @@ export default function Settings() {
     setTimeout(() => window.location.reload(), 500)
   }
 
+  const activeEnvName = envs.find(e => e.id === activeEnvId)?.name || "Active"
+
   return (
     <div className="max-w-2xl space-y-8">
+      {/* ── Environment Selector Section ─────────────────────────────── */}
+      <div className="space-y-4 border-b border-border pb-6">
+        <div>
+          <h2 className="text-sm font-medium uppercase text-muted-foreground tracking-wider mb-1">
+            Environments
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Switch environments to instantly swap credentials and target hosts.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {envs.map((env) => {
+            const isActive = env.id === activeEnvId
+            const isDefault = ["production", "staging", "local"].includes(env.id)
+            return (
+              <div
+                key={env.id}
+                onClick={() => handleSwitch(env.id)}
+                className={`inline-flex items-center gap-2 pl-3 pr-3.5 py-1.5 rounded-full text-xs font-medium border cursor-pointer select-none transition-all group ${
+                  isActive
+                    ? "bg-primary border-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                    : "bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+              >
+                {env.id === "production" && <Globe className="w-3.5 h-3.5" />}
+                {env.id === "staging" && <Server className="w-3.5 h-3.5" />}
+                {env.id === "local" && <Laptop className="w-3.5 h-3.5" />}
+                {!isDefault && <SettingsIcon className="w-3.5 h-3.5" />}
+
+                <span>{env.name}</span>
+
+                {!isDefault && (
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDelete(env)
+                    }}
+                    className={`ml-1.5 p-0.5 rounded-full transition-colors ${
+                      isActive
+                        ? "hover:bg-primary-foreground/20 text-primary-foreground/75 hover:text-primary-foreground"
+                        : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                    }`}
+                    title={`Delete ${env.name}`}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </span>
+                )}
+              </div>
+            )
+          })}
+
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-1.5 pl-3 pr-4 py-1.5 rounded-full text-xs font-medium border border-dashed border-border bg-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground hover:bg-muted/20 transition-all select-none"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Environment
+          </button>
+        </div>
+      </div>
+
       <div className="space-y-6">
         <div className="space-y-4">
-          <h2 className="text-sm font-medium uppercase text-muted-foreground tracking-wider border-b border-border pb-2">
-            API Configuration
+          <h2 className="text-sm font-medium uppercase text-muted-foreground tracking-wider border-b border-border pb-2 flex items-center justify-between">
+            <span>API Configuration</span>
+            <span className="text-xs font-normal text-muted-foreground normal-case bg-muted px-2 py-0.5 rounded">
+              Saving to: <strong className="font-semibold text-foreground">{activeEnvName}</strong>
+            </span>
           </h2>
           <div className="grid gap-4">
             <div className="grid grid-cols-[120px_1fr] items-center gap-4">
@@ -58,12 +202,53 @@ export default function Settings() {
       </div>
 
       {/* ── Langfuse Section ──────────────────────────────────────────── */}
-      <LangfuseSection />
+      <LangfuseSection activeEnvName={activeEnvName} />
+
+      {/* ── Add Environment Dialog Modal ─────────────────────────────── */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowAddModal(false)}
+          />
+          <div className="relative bg-background border border-border rounded-lg shadow-xl w-full max-w-sm mx-4 p-5 animate-in zoom-in-95 duration-200 space-y-4">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Add New Environment</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Enter a name. This will duplicate current configuration as a starting point.
+              </p>
+            </div>
+
+            <input
+              type="text"
+              placeholder="e.g. UAT, Dev 2"
+              value={newEnvName}
+              onChange={(e) => setNewEnvName(e.target.value)}
+              className="flex h-9 w-full rounded-md border border-border bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newEnvName.trim()) {
+                  handleAddEnv()
+                }
+              }}
+            />
+
+            <div className="flex justify-end gap-2.5 pt-1">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowAddModal(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" className="h-8 text-xs" onClick={handleAddEnv} disabled={!newEnvName.trim()}>
+                Create Environment
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function LangfuseSection() {
+function LangfuseSection({ activeEnvName }: { activeEnvName: string }) {
   const { toast } = useToast()
   const saved = getLangfuseSettings()
   const [lf, setLf] = useState({
@@ -80,8 +265,23 @@ function LangfuseSection() {
     setStorage(STORAGE_KEYS.LANGFUSE_HOST, lf.host)
     setStorage(STORAGE_KEYS.LANGFUSE_PUBLIC_KEY, lf.publicKey)
     setStorage(STORAGE_KEYS.LANGFUSE_SECRET_KEY, lf.secretKey)
+
+    // Save to active environment entry in environments array
+    const activeId = getActiveEnvId()
+    const envs = getEnvironments()
+    const env = envs.find(e => e.id === activeId)
+    if (env) {
+      saveEnvironment({
+        ...env,
+        lfHost: lf.host,
+        lfPublicKey: lf.publicKey,
+        lfSecretKey: lf.secretKey
+      })
+    }
+
     toast({ title: "Langfuse settings saved" })
     setTestResult(null)
+    setTimeout(() => window.location.reload(), 500)
   }
 
   const testConnection = async () => {
@@ -102,9 +302,14 @@ function LangfuseSection() {
 
   return (
     <div className="space-y-4 border-t border-border pt-6">
-      <h2 className="text-sm font-medium uppercase text-muted-foreground tracking-wider flex items-center gap-2">
-        <FlaskConical className="w-4 h-4 text-[var(--accent)]" />
-        Langfuse Observability
+      <h2 className="text-sm font-medium uppercase text-muted-foreground tracking-wider flex items-center justify-between">
+        <span className="flex items-center gap-2">
+          <FlaskConical className="w-4 h-4 text-[var(--accent)]" />
+          Langfuse Observability
+        </span>
+        <span className="text-xs font-normal text-muted-foreground normal-case bg-muted px-2 py-0.5 rounded">
+          Saving to: <strong className="font-semibold text-foreground">{activeEnvName}</strong>
+        </span>
       </h2>
       <div className="grid gap-4">
         <div className="grid grid-cols-[120px_1fr] items-center gap-4">

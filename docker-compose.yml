@@ -10,4 +10,7 @@ services:
       - "${PORT:-8080}:${PORT:-80}"
     environment:
       - PORT=${PORT:-80}
+    labels:
+      - 'caddy_0.basicauth=/*'
+      - 'caddy_0.basicauth.QwintSoft="$2b$10$E.vascGEMrwySvjEmpmXU.cVKfdXfjPSTaFZ80kFjm9eOjsO8K.jm"'
     restart: unless-stopped
